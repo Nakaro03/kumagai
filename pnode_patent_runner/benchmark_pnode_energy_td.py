@@ -291,3 +291,168 @@ class PNodeEnergyTDContinuous(nn.Module):
         return self.temporal_predictor(
             z_history_list[-1], year_start=int(year_calendar_start)
         )
+
+
+# ---------------------------------------------------------------------------
+# 【新規②】PNodeEnergyTDBasis — 基底分解型 Φ(z,t) を使う PNODE
+# ---------------------------------------------------------------------------
+
+class PNodeEnergyTDBasis(nn.Module):
+    """
+    基底分解型ポテンシャル Φ(z,t) = α(t)ᵀ Φ_basis(z) を使う P-NODE 変種。
+
+    【PNodeEnergyTDContinuous との違い】
+        - Φ が BasisDecomposedPotentialNet（基底分解）
+        - α(t) を get_alpha() で取得 → Figure 1 の「年別基底重みの推移」に直結
+        - 基底数 num_basis はハイパーパラメータ（デフォルト 8）
+
+    【訓練ループとの互換性】
+        predict_future / decode / decode_logits のシグネチャは
+        PNodeEnergyTD / PNodeEnergyTDContinuous と同一。
+        compute_loss_standardized_td をそのまま使用可能。
+
+    【論文上の位置づけ】
+        アブレーション表の「Basis-K」列として掲載。
+        K=1 は ContinuousTimePotentialNet に近い退化ケース、
+        K=8 が提案の標準設定。
+    """
+
+    decode_requires_calendar_year: bool = True
+    time_dependent_potential: bool = True
+    pnode_energy_td_basis: bool = True        # 識別フラグ
+    temporal_history_len: int = 1
+
+    def __init__(
+        self,
+        num_nodes: int,
+        num_corps: int,
+        input_dim: int,
+        hidden_dim: int = 256,
+        latent_dim: int = 2,
+        initial_corp_vectors=None,
+        link_score_mode: str = "distance",
+        year_min: int = 2010,
+        year_max: int = 2020,
+        num_basis: int = 8,
+        time_fourier_K: int = 8,
+    ):
+        super().__init__()
+        self.num_nodes = num_nodes
+        self.num_corps = num_corps
+        self.latent_dim = latent_dim
+        if link_score_mode not in ("distance", "cosine"):
+            raise ValueError("link_score_mode must be 'distance' or 'cosine'")
+        self.link_score_mode = link_score_mode
+        self.year_min = int(year_min)
+        self.year_max = int(year_max)
+        self.num_basis = int(num_basis)
+
+        self.corp_embeddings = nn.Embedding(num_corps, input_dim)
+        if initial_corp_vectors is not None:
+            self.corp_embeddings.weight.data.copy_(initial_corp_vectors)
+        else:
+            nn.init.normal_(self.corp_embeddings.weight, mean=0.0, std=0.05)
+
+        self.encoder = SharedVGAEEncoder(input_dim, hidden_dim, latent_dim)
+
+        # 基底分解型予測子をインポート
+        from pnode_patent_runner.time_dependent_potential import (
+            GradientNeuralODEPredictorBasis,
+        )
+        self.temporal_predictor = GradientNeuralODEPredictorBasis(
+            latent_dim, hidden_dim, year_min, year_max, num_basis, time_fourier_K
+        )
+
+        # ボルツマン型パラメータ
+        self._log_boltzmann_beta = nn.Parameter(torch.tensor(0.541324855))
+        self._log_pair_lambda = nn.Parameter(torch.tensor(-2.3025850929940455))
+
+    @property
+    def potential_net(self):
+        return self.temporal_predictor.potential_net
+
+    def _pair_geom(self, z: torch.Tensor, edge_index: torch.Tensor) -> torch.Tensor:
+        z_src = z[edge_index[0]]
+        z_dst = z[edge_index[1]]
+        if self.link_score_mode == "cosine":
+            z_src = F.normalize(z_src, p=2, dim=1, eps=1e-8)
+            z_dst = F.normalize(z_dst, p=2, dim=1, eps=1e-8)
+            return 2.0 * (1.0 - (z_src * z_dst).sum(dim=1))
+        return torch.sum((z_src - z_dst) ** 2, dim=1)
+
+    def decode_logits(
+        self,
+        z: torch.Tensor,
+        edge_index: torch.Tensor,
+        calendar_year: int,
+    ) -> torch.Tensor:
+        """
+        logit = -β · (d_ij - λ·(Φ(z_i,t) + Φ(z_j,t)))
+        Φ は基底分解型: α(t)ᵀ Φ_basis(z)
+        """
+        pn = self.potential_net
+        t_offset = float(calendar_year) - float(pn.year_min)
+        t_scalar = torch.tensor(t_offset, dtype=torch.float32, device=z.device)
+
+        phi = pn(z, t_scalar)
+        if phi.dim() > 1:
+            phi = phi.squeeze(-1)
+
+        phi_e = phi[edge_index[0]] + phi[edge_index[1]]
+        d_ij = self._pair_geom(z, edge_index)
+
+        lam = F.softplus(self._log_pair_lambda)
+        beta = F.softplus(self._log_boltzmann_beta)
+        return torch.clamp(-beta * (d_ij - lam * phi_e), -10, 10)
+
+    def decode(
+        self,
+        z: torch.Tensor,
+        edge_index: torch.Tensor,
+        calendar_year: int,
+    ) -> torch.Tensor:
+        return torch.sigmoid(self.decode_logits(z, edge_index, calendar_year))
+
+    def get_node_features(self, x, node_indices=None):
+        features = x.clone()
+        if node_indices is None:
+            node_indices = torch.arange(self.num_nodes, device=x.device)
+        corp_idx = node_indices[node_indices < self.num_corps]
+        if corp_idx.numel() > 0:
+            features[corp_idx] = self.corp_embeddings(corp_idx)
+        return features
+
+    def encode(self, x, edge_index, node_indices=None):
+        x_features = self.get_node_features(x, node_indices)
+        mu, logvar = self.encoder(x_features, edge_index)
+        z = self.reparameterize(mu, logvar)
+        return z, mu, logvar
+
+    def reparameterize(self, mu, logvar):
+        if self.training:
+            return mu + torch.randn_like(logvar) * torch.exp(0.5 * logvar)
+        return mu
+
+    def predict_future(
+        self,
+        z_history_list,
+        year_calendar_start=None,
+    ) -> torch.Tensor:
+        if year_calendar_start is None:
+            raise ValueError("year_calendar_start is required for PNodeEnergyTDBasis")
+        return self.temporal_predictor(
+            z_history_list[-1], year_start=int(year_calendar_start)
+        )
+
+    def get_basis_weights_over_time(self, year_range, device: str = "cpu"):
+        """
+        year_range: list of calendar years (e.g. range(2010, 2021))
+        返り値: shape (len(years), K) の numpy 配列
+        → 論文 Figure 1 下段「基底重み α(t) の時系列」プロット用
+        """
+        import numpy as np
+        alphas = []
+        for y in year_range:
+            alpha = self.potential_net.get_alpha(float(y), device=device)
+            alphas.append(alpha.numpy())
+        return __import__("numpy").stack(alphas, axis=0)

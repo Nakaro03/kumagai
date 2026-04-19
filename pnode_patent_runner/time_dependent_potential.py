@@ -503,3 +503,256 @@ class GradientNeuralODEPredictorTime(nn.Module):
         return odeint(
             self.ode_func, z_current, t_span, method="dopri5", rtol=1e-3, atol=1e-3
         )[-1]
+
+
+# ---------------------------------------------------------------------------
+# 【新規②】BasisDecomposedPotentialNet — 基底分解型時間依存ポテンシャル
+# ---------------------------------------------------------------------------
+
+class BasisDecomposedPotentialNet(nn.Module):
+    """
+    Φ(z, t) = α(t)ᵀ Φ_basis(z)
+
+    【設計思想】
+        技術トレンドには「AIブーム」「材料科学ブーム」のような複数の
+        潜在的引力パターンが存在し、各時代でその「強さ」が変化する。
+        K 個の静的地形 Φ_basis(z) ∈ ℝᴷ と、
+        時刻 t が決める重み α(t) ∈ ℝᴷ の内積でΦを表現する。
+
+    【各項の役割】
+        Φ_basis(z): K 個の「地形の型」— 空間方向のRFF特徴量からMLPで計算。
+                    時刻に依存しないため、どの年にも共通する構造を学習する。
+        α(t)      : 各時代で地形の重みを決めるゲート。
+                    Fourier埋め込みからMLPで計算し softmax で正規化。
+                    → 「2010年はパターン2が支配的、2020年はパターン5が支配的」
+                    という解釈が可能になり、Figure 1 の可視化に直接使える。
+
+    【既存 ContinuousTimePotentialNet との違い】
+        旧: MLP([RFF(z), γ(t)]) — z と t を concat → t がオフセット変調のみ
+        新: α(t)ᵀ Φ_basis(z)  — z と t が積として相互作用 → 地形の「形」自体が変化
+
+    入力:
+        z       : (N, latent_dim)
+        t_scalar: 0-dim テンソル — 暦年オフセット t - year_min ∈ [0, T]
+    出力: (N, 1)
+    """
+
+    def __init__(
+        self,
+        latent_dim: int,
+        hidden_dim: int,
+        year_min: int,
+        year_max: int,
+        num_basis: int = 8,
+        time_fourier_K: int = 8,
+    ):
+        super().__init__()
+        self.latent_dim = int(latent_dim)
+        self.year_min = float(year_min)
+        self.year_max = float(year_max)
+        self.T = float(year_max - year_min) if year_max > year_min else 1.0
+        self.num_basis = int(num_basis)
+        self.time_fourier_K = int(time_fourier_K)
+
+        # --- 空間側: Φ_basis(z) ∈ ℝᴷ ---
+        # RFF でz をランダム特徴に写像してから K 次元に圧縮
+        self.B = nn.Parameter(
+            torch.randn(latent_dim, hidden_dim // 2) * 3.0, requires_grad=False
+        )
+        rff_dim = hidden_dim  # sin + cos 各 hidden_dim//2
+        self.basis_net = nn.Sequential(
+            nn.Linear(rff_dim, hidden_dim * 2),
+            nn.LeakyReLU(0.2),
+            nn.Dropout(0.1),
+            nn.Linear(hidden_dim * 2, hidden_dim),
+            nn.LeakyReLU(0.2),
+            nn.Linear(hidden_dim, num_basis),
+            # 出力は Tanh で [-1,1] に正規化（基底の振る舞いを安定化）
+            nn.Tanh(),
+        )
+
+        # --- 時間側: α(t) ∈ ℝᴷ ---
+        # Fourier埋め込み → MLP → softmax（重みの解釈可能性を確保）
+        t_emb_dim = 2 * time_fourier_K
+        self.alpha_net = nn.Sequential(
+            nn.Linear(t_emb_dim, hidden_dim),
+            nn.LeakyReLU(0.2),
+            nn.Linear(hidden_dim, num_basis),
+            # softmax で α を確率的重みに（和=1、非負）
+            # → 「時刻 t では基底 k が何割支配的か」を可視化できる
+            nn.Softmax(dim=-1),
+        )
+
+        # スカラースケール（Φ 全体の振幅を学習可能に）
+        self.log_scale = nn.Parameter(torch.tensor(0.0))
+
+    def _rff(self, z: torch.Tensor) -> torch.Tensor:
+        proj = torch.matmul(z, self.B)
+        return torch.cat([torch.sin(proj), torch.cos(proj)], dim=-1)  # (N, hidden_dim)
+
+    def _t_emb(self, t_scalar: torch.Tensor) -> torch.Tensor:
+        return fourier_time_embed(t_scalar, self.time_fourier_K, self.T)  # (2K,)
+
+    def forward(self, z: torch.Tensor, t_scalar: torch.Tensor) -> torch.Tensor:
+        """
+        z       : (N, latent_dim)
+        t_scalar: 0-dim — 暦年オフセット
+        -> (N, 1)
+        """
+        if z.dim() != 2 or z.size(1) != self.latent_dim:
+            raise ValueError(f"z must be (N, {self.latent_dim}), got {tuple(z.shape)}")
+
+        # 空間側: (N, K)
+        phi_basis = self.basis_net(self._rff(z))
+
+        # 時間側: (K,) → (1, K) → (N, K) にブロードキャスト
+        t = t_scalar.squeeze()
+        t_emb = self._t_emb(t)                         # (2K,)
+        alpha = self.alpha_net(t_emb)                  # (K,)
+        alpha = alpha.unsqueeze(0)                     # (1, K)
+
+        # 内積: Σ_k α_k(t) · Φ_basis_k(z)
+        phi = (alpha * phi_basis).sum(dim=-1, keepdim=True)  # (N, 1)
+
+        # スカラースケール（exp で正値保証、初期値≈1）
+        phi = phi * torch.exp(self.log_scale)
+        return phi
+
+    def get_alpha(self, calendar_year: float, device: str = "cpu") -> torch.Tensor:
+        """
+        時刻 calendar_year における基底重み α(t) を返す。
+        Figure 1 の可視化用: α の時系列をプロットすると
+        「どの年にどのトレンドパターンが支配的だったか」が分かる。
+        -> (K,) の numpy 配列として返す
+        """
+        t_offset = float(calendar_year) - self.year_min
+        t_scalar = torch.tensor(t_offset, dtype=torch.float32, device=device)
+        with torch.no_grad():
+            t_emb = self._t_emb(t_scalar)
+            alpha = self.alpha_net(t_emb)
+        return alpha.cpu()
+
+    def compute_potential_grid(
+        self,
+        x_range: tuple,
+        y_range: tuple,
+        calendar_year: float,
+        resolution: int = 50,
+        device: str = "cpu",
+    ):
+        """latent_dim==2 用グリッド計算（可視化・Figure 1 用）。"""
+        x = torch.linspace(x_range[0], x_range[1], resolution)
+        y = torch.linspace(y_range[0], y_range[1], resolution)
+        X, Y = torch.meshgrid(x, y, indexing="ij")
+        grid_points = torch.stack([X.flatten(), Y.flatten()], dim=1).to(device)
+        model_device = next(self.parameters()).device
+        t_offset = float(calendar_year) - self.year_min
+        t_scalar = torch.tensor(t_offset, dtype=torch.float32, device=model_device)
+        with torch.no_grad():
+            potentials = self.forward(grid_points.to(model_device), t_scalar)
+        pot = potentials.view(resolution, resolution)
+        return X.cpu().numpy(), Y.cpu().numpy(), pot.cpu().numpy()
+
+
+# ---------------------------------------------------------------------------
+# 【新規②】GradientODEFuncBasis — 基底分解 Φ を使う連続時間 ODE
+# ---------------------------------------------------------------------------
+
+class GradientODEFuncBasis(nn.Module):
+    """
+    GradientODEFuncContinuous の基底分解版。
+    state = (z, t_cont) を積分し、Φ に BasisDecomposedPotentialNet を使う。
+
+    dz/dτ = -tanh(s) · ∇_z Φ(z, t_cont)
+    dt/dτ = 1
+    """
+
+    def __init__(self, potential_net: BasisDecomposedPotentialNet):
+        super().__init__()
+        self.potential_net = potential_net
+        self.scale = nn.Parameter(torch.tensor(0.3))
+
+    def forward(self, tau, state):
+        z, t_cont = state
+        t_scalar = t_cont.squeeze()
+
+        with torch.set_grad_enabled(True):
+            z_in = z.detach().requires_grad_(True)
+            phi = self.potential_net(z_in, t_scalar)         # (N, 1)
+            grad_z = torch.autograd.grad(
+                phi.sum(), z_in, create_graph=True
+            )[0]
+
+        dz = -torch.tanh(self.scale) * grad_z
+        dt = torch.ones_like(t_cont)
+        return dz, dt
+
+    def compute_gradient_field(self, X, Y, calendar_year: float, device: str = "cpu"):
+        pn = self.potential_net
+        t_offset = float(calendar_year) - pn.year_min
+        grid_points = torch.tensor(
+            __import__("numpy").stack([X.flatten(), Y.flatten()], axis=1),
+            dtype=torch.float32, device=device,
+        )
+        t_scalar = torch.tensor(t_offset, dtype=torch.float32, device=device)
+        grid_points = grid_points.requires_grad_(True)
+        phi = pn(grid_points, t_scalar)
+        gradients = torch.autograd.grad(phi.sum(), grid_points, create_graph=False)[0]
+        grad_x = gradients[:, 0].view(X.shape).cpu().numpy()
+        grad_y = gradients[:, 1].view(Y.shape).cpu().numpy()
+        return grad_x, grad_y
+
+
+# ---------------------------------------------------------------------------
+# 【新規②】GradientNeuralODEPredictorBasis — 基底分解 PNODE 予測子
+# ---------------------------------------------------------------------------
+
+class GradientNeuralODEPredictorBasis(nn.Module):
+    """
+    基底分解型 Φ(z,t) を使った連続時間 ODE 予測子。
+
+    GradientNeuralODEPredictorContinuous の上位互換。
+    predict_future / forward のシグネチャは同一なので
+    訓練ループの変更不要。
+    """
+
+    def __init__(
+        self,
+        latent_dim: int,
+        hidden_dim: int,
+        year_min: int,
+        year_max: int,
+        num_basis: int = 8,
+        time_fourier_K: int = 8,
+    ):
+        super().__init__()
+        self.potential_net = BasisDecomposedPotentialNet(
+            latent_dim, hidden_dim, year_min, year_max, num_basis, time_fourier_K
+        )
+        self.ode_func = GradientODEFuncBasis(self.potential_net)
+        self.year_min = int(year_min)
+        self.year_max = int(year_max)
+
+    def forward(
+        self,
+        z_current: torch.Tensor,
+        year_start: int,
+        delta_t: float = 1.0,
+    ) -> torch.Tensor:
+        from torchdiffeq import odeint_adjoint as odeint
+
+        device = z_current.device
+        t_offset_start = float(year_start) - float(self.year_min)
+        t_cont0 = torch.tensor([t_offset_start], dtype=torch.float32, device=device)
+        tau_span = torch.tensor([0.0, delta_t], device=device)
+        state0 = (z_current, t_cont0)
+
+        state_T = odeint(
+            self.ode_func,
+            state0,
+            tau_span,
+            method="dopri5",
+            rtol=1e-3,
+            atol=1e-3,
+        )
+        return state_T[0][-1]  # z at τ=delta_t

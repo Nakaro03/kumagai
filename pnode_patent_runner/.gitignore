@@ -1,0 +1,21 @@
+# 学習・可視化・ベンチマークの出力（再実行で再現可能なら Git に含めない）
+outputs/
+
+# チェックポイント・Optuna 等のバイナリ
+*.pt
+*.pth
+*.ckpt
+*.db
+*.sqlite
+*.sqlite3
+
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.eggs/
+dist/
+build/

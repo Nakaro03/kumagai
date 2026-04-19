@@ -1,9 +1,15 @@
 # 全てのファイルを一旦無視
 *
 
-# フォルダ構造は維持するが、中身は無視
-!*/
+# 全階層のディレクトリは辿れるようにする（否定パターンでファイルを載せるため）
+!**/
 
 # 許可するファイル拡張子（ipynbのみ）
 !*.ipynb
 !.gitignore
+!requirements.txt
+!Dockerfile
+
+# README_COPE 等の Python パイプライン（生成物は pnode_patent_runner/.gitignore）
+!pnode_patent_runner/
+!pnode_patent_runner/**

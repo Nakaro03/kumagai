@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<!-- CoPE 潜在マップ既定テンプレ: run_interactive_landscape_cope_vector_field の --html-template 既定。成果物例 map_cope_alt_dark.html -->
+<html lang="ja">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>__PAGE_TITLE__</title>
+  <script src="https://cdn.plot.ly/plotly-2.27.0.min.js" charset="utf-8"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: "Segoe UI", system-ui, sans-serif; margin: 0; background: #0c0e12; color: #c8cdd8; min-height: 100vh; }
+    .shell { display: flex; flex-direction: row; align-items: stretch; min-height: 100vh; gap: 0; }
+    .panel {
+      flex: 0 0 272px; padding: 14px 16px 20px; background: linear-gradient(180deg, #141820 0%, #0e1117 100%);
+      border-right: 1px solid rgba(100, 120, 160, 0.22); overflow-y: auto; max-height: 100vh;
+    }
+    .main { flex: 1 1 auto; display: flex; flex-direction: row; align-items: stretch; min-width: 0; gap: 0; }
+    .plot-wrap { flex: 1 1 auto; display: flex; flex-direction: column; padding: 12px 10px 16px 14px; min-width: 0; }
+    .detail-panel {
+      flex: 0 0 300px; max-width: 340px; padding: 14px 14px 20px;
+      background: linear-gradient(180deg, #151a22 0%, #0e1118 100%);
+      border-left: 1px solid rgba(100, 120, 160, 0.25);
+      overflow-y: auto; max-height: 100vh; font-size: 0.8rem; color: #c4ccd8;
+    }
+    .detail-panel h2 { font-size: 0.78rem; margin: 0 0 10px; font-weight: 600; color: #94a3b8; letter-spacing: 0.04em; text-transform: uppercase; }
+    .detail-panel .detail-badge {
+      display: inline-block; font-size: 0.68rem; font-weight: 700; padding: 3px 8px; border-radius: 4px; margin-bottom: 10px;
+      background: rgba(59, 130, 246, 0.22); color: #93c5fd; border: 1px solid rgba(96, 165, 250, 0.35);
+    }
+    .detail-panel .detail-badge.corp { background: rgba(245, 158, 11, 0.18); color: #fcd34d; border-color: rgba(251, 191, 36, 0.35); }
+    .detail-panel .detail-placeholder { color: #64748b; line-height: 1.5; font-size: 0.78rem; }
+    .detail-panel dl { margin: 0; padding: 0; }
+    .detail-panel dt { color: #7c8ca0; font-size: 0.72rem; margin-top: 10px; margin-bottom: 3px; }
+    .detail-panel dd { margin: 0 0 0 0; color: #e8ecf4; line-height: 1.45; word-break: break-word; white-space: pre-wrap; font-size: 0.78rem; }
+    .detail-panel dd.mono { font-family: ui-monospace, monospace; font-size: 0.74rem; }
+    .color-by-row { margin: 0 0 10px; font-size: 0.78rem; }
+    .color-by-row label { display: block; margin-bottom: 4px; color: #8b96a8; }
+    .color-by-row select { width: 100%; }
+    .category-legend { max-height: 120px; overflow-y: auto; margin: 0 0 10px; padding: 8px; border-radius: 8px;
+      background: rgba(12,14,20,0.65); border: 1px solid rgba(80,95,130,0.28); font-size: 0.72rem; line-height: 1.35; }
+    .category-legend .row { display: flex; align-items: flex-start; gap: 6px; margin-bottom: 5px; color: #a8b0c0; }
+    .category-legend .sw { flex: 0 0 11px; height: 11px; border-radius: 2px; margin-top: 2px; border: 1px solid rgba(255,255,255,0.12); }
+    h1 { font-size: 0.95rem; margin: 0 0 14px; font-weight: 600; color: #e8eaf0; letter-spacing: 0.02em; line-height: 1.35; }
+    #plot {
+      width: 100%; flex: 1 1 auto; min-height: 420px; height: calc(100vh - 24px);
+      background: #12151c; border-radius: 10px; border: 1px solid rgba(80, 95, 130, 0.35);
+    }
+    .year-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin: 0 0 12px; font-size: 0.82rem; }
+    #yearSlider { flex: 1 1 140px; min-width: 120px; height: 7px; cursor: pointer; accent-color: #5b8fd4; }
+    .field-toggles { display: flex; flex-direction: column; gap: 8px; margin: 0 0 12px; font-size: 0.82rem; }
+    .field-toggles label { cursor: pointer; }
+    .field-adjustments { display: flex; flex-direction: column; gap: 10px; margin: 0 0 14px; font-size: 0.8rem; }
+    .field-adjustments .adj { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .field-adjustments input[type="range"] { width: 130px; accent-color: #4a7ab8; }
+    .patent-legend { display: flex; flex-direction: column; gap: 6px; margin: 0 0 12px; font-size: 0.78rem; color: #a8b0c0; }
+    .patent-legend .swatch { display: inline-block; width: 12px; height: 12px; margin-right: 6px; vertical-align: middle; border-radius: 2px; border: 1px solid rgba(255,255,255,0.15); }
+    .patent-legend .swatch.teal { background: rgba(13, 148, 136, 0.92); }
+    .hint { color: #7a8498; font-size: 0.76rem; line-height: 1.45; margin: 0 0 12px; }
+    .bar { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; margin-bottom: 10px; font-size: 0.82rem; }
+    select, button {
+      background: #1a1f2a; color: #dce2ee; border: 1px solid rgba(90, 105, 140, 0.45);
+      border-radius: 6px; padding: 7px 10px; max-width: 100%;
+    }
+    button { cursor: pointer; }
+    button:hover, select:hover { border-color: rgba(120, 150, 200, 0.55); }
+    #corpPick { width: 100%; min-width: 0; }
+    .corp-selection-status {
+      margin: 0 0 10px; padding: 10px 12px; border-radius: 8px; border: 1px dashed rgba(120, 130, 160, 0.35);
+      background: rgba(20, 24, 32, 0.9); font-size: 0.82rem; line-height: 1.45; color: #a8b0c0;
+    }
+    .corp-selection-status.is-active { border: 2px solid #d97706; background: linear-gradient(105deg, rgba(60, 45, 20, 0.55) 0%, rgba(45, 38, 22, 0.75) 100%); color: #f5e6d0; }
+    .corp-selection-status.is-joint-patent.is-active { border-color: #2dd4bf; background: linear-gradient(105deg, rgba(15, 55, 48, 0.55) 0%, rgba(12, 42, 38, 0.75) 100%); color: #ccfbf1; }
+    .corp-status-label { display: inline-block; margin-right: 6px; padding: 2px 7px; border-radius: 4px;
+      background: #b45309; color: #fff; font-size: 0.72rem; font-weight: 700; }
+    .corp-select-wrap.has-selection { box-shadow: 0 0 0 2px rgba(217, 119, 6, 0.5); border-radius: 6px; display: inline-block; width: 100%; }
+    .tag { display: inline-block; font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.06em; color: #6b7a94; margin-bottom: 6px; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="panel">
+      <span class="tag">alt template</span>
+      <h1>__HEADING__</h1>
+      <div class="year-bar">
+        <label for="yearSlider" id="yearSliderLabel">年度</label>
+        <span id="yearMinLabel"></span>
+        <input type="range" id="yearSlider" />
+        <span id="yearMaxLabel"></span>
+        <strong id="yearCurrent"></strong>
+      </div>
+      <div class="field-toggles">
+        <label><input type="checkbox" id="chkHeatmap" checked /> Φ ヒートマップ</label>
+        <label><input type="checkbox" id="chkContour" checked /> Φ 等高線</label>
+        <label><input type="checkbox" id="chkArrows" checked /> −∇Φ 短矢印</label>
+      </div>
+      <div class="field-adjustments">
+        <div class="adj"><label for="rngHeatOp">ヒート透明度</label>
+          <input type="range" id="rngHeatOp" min="0.08" max="0.55" step="0.02" value="0.28" /><span id="lblHeatOp"></span></div>
+        <div class="adj"><label for="rngArrowOp">矢印透明度</label>
+          <input type="range" id="rngArrowOp" min="0.35" max="1" step="0.05" value="0.9" /><span id="lblArrowOp"></span></div>
+        <div class="adj"><label for="selNCont">等高線本数</label>
+          <select id="selNCont"><option value="10">10</option><option value="14" selected>14</option><option value="18">18</option><option value="24">24</option></select></div>
+      </div>
+      <div class="patent-legend" id="jointLegend">
+        <span><span class="swatch" style="background:rgba(248,113,113,0.9)"></span>単独出願</span>
+        <span><span class="swatch" style="background:rgba(74,222,128,0.9)"></span>共同出願</span>
+        <span><span class="swatch teal"></span>共同クリック時の関与企業</span>
+      </div>
+      <div id="patentColorSection" class="color-by-row" style="display:none;">
+        <label for="selColorBy">特許の色分け</label>
+        <select id="selColorBy">
+          <option value="joint">単独 / 共同</option>
+          <option value="leadIpc">Lead_IPC</option>
+          <option value="fi">FI</option>
+          <option value="fterm">F-term</option>
+        </select>
+      </div>
+      <div id="categoryLegend" class="category-legend" style="display:none;" aria-label="分類凡例"></div>
+      <p class="hint" id="hintSlot">元テンプレートと同じペイロード。Plotly をダーク背景＋ Viridis ヒートに変更。左パネル＋広いプロット領域。</p>
+      <div class="bar">
+        <label for="corpPick" id="leftSelectLabel">企業</label>
+        <span class="corp-select-wrap" id="corpSelectWrap"><select id="corpPick"><option value="">— 選択なし —</option></select></span>
+        <button type="button" id="btnClear">解除</button>
+      </div>
+      <div id="corpSelectionStatus" class="corp-selection-status"></div>
+    </aside>
+    <div class="main">
+      <div class="plot-wrap">
+        <div id="plot"></div>
+      </div>
+      <aside class="detail-panel" id="detailPanel">
+        <h2>ノード詳細</h2>
+        <div id="detailBody" class="detail-placeholder">プロット上の特許（四角）または企業（丸）をクリックすると、ここにメタデータを表示します。</div>
+      </aside>
+    </div>
+  </div>
+  <script type="text/plain" id="payload-b64" style="display:none">__PAYLOAD_B64__</script>
+  <script>
+  function parseJsonFromBase64Utf8(b64) {
+    const bin = atob(b64.trim());
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    return JSON.parse(new TextDecoder('utf-8').decode(bytes));
+  }
+  const WRAP = parseJsonFromBase64Utf8(document.getElementById('payload-b64').textContent);
+  const DATA = WRAP.byYear;
+  const U = Object.assign({
+    yearSliderLabel: '年度',
+    leftSelectLabel: '企業',
+    rightTraceName: '特許',
+    leftTraceName: '企業',
+    layoutTitleTemplate: '表示年: {year} ／ 特許 {nRight} · 企業 {nLeft}',
+    corpOptionTemplate: '{name} ／ この年 {patentsYear} · 全期間 {patentsTotal}',
+    statusYearRightPrefix: ' ／ この年の特許 ',
+    statusYearRightSuffix: ' 件',
+    jointStatusPrefix: '共同出願特許 ',
+    idleHint: '企業・特許をクリックで強調。',
+    hintHtml: '',
+    legendInnerHtml: '',
+  }, WRAP.ui || {});
+  (function applyUiFromPayload() {
+    const yl = document.getElementById('yearSliderLabel');
+    if (yl && U.yearSliderLabel) yl.textContent = U.yearSliderLabel;
+    const ll = document.getElementById('leftSelectLabel');
+    if (ll && U.leftSelectLabel) ll.textContent = U.leftSelectLabel;
+    const h = document.getElementById('hintSlot');
+    if (h && U.hintHtml) h.innerHTML = U.hintHtml;
+    const leg = document.querySelector('.patent-legend');
+    if (leg && U.legendInnerHtml) leg.innerHTML = U.legendInnerHtml;
+    const pcs = document.getElementById('patentColorSection');
+    if (pcs && U.domain === 'patent') pcs.style.display = 'block';
+  })();
+  let currentYear = String(WRAP.defaultYear);
+  let colorBy = 'joint';
+  const singleColor = 'rgba(248, 113, 113, 0.92)';
+  const jointColor = 'rgba(74, 222, 128, 0.92)';
+  const highlightSingle = 'rgb(255, 80, 80)';
+  const highlightJoint = 'rgb(34, 197, 94)';
+  const dimColor = 'rgba(100, 110, 130, 0.2)';
+  let showHeatmap = true, showContour = true, showArrows = true;
+  let heatmapOpacity = 0.28, arrowOpacity = 0.9, nContourLevels = 14;
+  let jointPartnerHighlight = new Set(), selectedJointPatentId = '';
+  function currentPayload() { return DATA[currentYear]; }
+  function isJoint(p) { return p.joint === true; }
+  function firstCategoryToken(raw) {
+    const s = (raw || '').trim();
+    if (!s) return '';
+    const parts = s.split(/[,;\n\r]+/).map(function (x) { return x.trim(); }).filter(Boolean);
+    return parts[0] || s;
+  }
+  function patentColorKey(p, mode) {
+    const m = mode || colorBy;
+    let raw = '';
+    if (m === 'leadIpc') raw = (p.leadIpc != null && String(p.leadIpc).trim()) ? String(p.leadIpc).trim() : '';
+    else if (m === 'fi') raw = (p.fi != null && String(p.fi).trim()) ? String(p.fi).trim() : '';
+    else if (m === 'fterm') raw = (p.fterm != null && String(p.fterm).trim()) ? String(p.fterm).trim() : '';
+    if ((m === 'fi' || m === 'fterm') && raw) raw = firstCategoryToken(raw);
+    return raw || '（未設定）';
+  }
+  function colorForCategoryKey(key, bright) {
+    const k = key || '（未設定）';
+    if (k === '（未設定）') return bright ? 'rgba(186,196,210,0.95)' : 'rgba(115,120,135,0.88)';
+    let h = 0;
+    for (let i = 0; i < k.length; i++) h = ((h << 5) - h) + k.charCodeAt(i) | 0;
+    h = Math.abs(h) % 360;
+    const s = bright ? 70 : 58;
+    const l = bright ? 58 : 48;
+    const a = bright ? 0.96 : 0.9;
+    return `hsla(${h}, ${s}%, ${l}%, ${a})`;
+  }
+  function baseColorsForPatents(P) {
+    const mode = colorBy;
+    if (mode === 'joint') return P.patents.map(p => (isJoint(p) ? jointColor : singleColor));
+    return P.patents.map(p => colorForCategoryKey(patentColorKey(p, mode), false));
+  }
+  function patentColorsForCorp(P, corpName) {
+    const mode = colorBy;
+    if (!corpName) return baseColorsForPatents(P);
+    const linked = new Set(P.corpToPatentIds[corpName] || []);
+    return P.patents.map(p => {
+      if (!linked.has(p.id)) return dimColor;
+      if (mode === 'joint') return isJoint(p) ? highlightJoint : highlightSingle;
+      return colorForCategoryKey(patentColorKey(p, mode), true);
+    });
+  }
+  function refreshCategoryLegend(P) {
+    const catEl = document.getElementById('categoryLegend');
+    const jointEl = document.getElementById('jointLegend');
+    if (!catEl || !jointEl) return;
+    if (U.domain !== 'patent') { catEl.style.display = 'none'; jointEl.style.display = ''; return; }
+    if (colorBy === 'joint') {
+      catEl.style.display = 'none';
+      jointEl.style.display = '';
+      return;
+    }
+    jointEl.style.display = 'none';
+    catEl.style.display = 'block';
+    const counts = {};
+    P.patents.forEach(p => {
+      const k = patentColorKey(p, colorBy);
+      counts[k] = (counts[k] || 0) + 1;
+    });
+    const keys = Object.keys(counts).sort((a,b) => counts[b] - counts[a] || a.localeCompare(b));
+    const label = colorBy === 'leadIpc' ? 'Lead_IPC' : (colorBy === 'fi' ? 'FI' : 'F-term');
+    const sub = (colorBy === 'fi' || colorBy === 'fterm')
+      ? '<div style="color:#64748b;font-size:0.65rem;margin-bottom:6px">※ 複数ある場合は先頭区分で着色</div>' : '';
+    catEl.innerHTML = sub + '<div style="color:#8b9cb0;margin-bottom:6px;font-size:0.7rem">' + label + '（この年）</div>' +
+      keys.map(k => {
+        const c = colorForCategoryKey(k, false);
+        const short = k.length > 42 ? (k.slice(0, 40) + '…') : k;
+        return '<div class="row"><span class="sw" style="background:' + c + '"></span><span>'
+          + short.replace(/</g,'&lt;') + ' <span style="color:#6b7a94">(' + counts[k] + ')</span></span></div>';
+      }).join('');
+  }
+  function renderDetailPlaceholder() {
+    const el = document.getElementById('detailBody');
+    if (!el) return;
+    el.className = 'detail-placeholder';
+    el.textContent = 'プロット上の特許（四角）または企業（丸）をクリックすると、ここにメタデータを表示します。';
+  }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+  function renderPatentDetail(d) {
+    const el = document.getElementById('detailBody');
+    if (!el || !d) return;
+    el.className = '';
+    const order = ['patent_number','patent_name','date','year','year_month','corporation','lead_ipc','ipc','fi','fterm','keyword','topic_id','lead_inventor','inventors','description'];
+    const titles = { patent_number: '特許番号', patent_name: '名称', date: '日付', year: '年', year_month: 'year_month',
+      corporation: '企業', lead_ipc: 'Lead_IPC', ipc: 'IPC', fi: 'FI', fterm: 'F-term', keyword: 'キーワード', topic_id: 'topic_id',
+      lead_inventor: '代表発明者', inventors: '発明者', description: '要約/説明' };
+    let html = '';
+    order.forEach(k => {
+      if (d[k] != null && String(d[k]).trim() !== '') {
+        html += '<dt>' + esc(titles[k] || k) + '</dt><dd' + (k === 'patent_number' ? ' class="mono"' : '') + '>'
+          + esc(d[k]) + '</dd>';
+      }
+    });
+    el.innerHTML = '<span class="detail-badge">特許ノード</span><dl>' + html + '</dl>';
+  }
+  function renderCorpDetail(d) {
+    const el = document.getElementById('detailBody');
+    if (!el || !d) return;
+    el.className = '';
+    el.innerHTML = '<span class="detail-badge corp">企業ノード</span><dl>'
+      + '<dt>企業名</dt><dd>' + esc(d.name||'') + '</dd>'
+      + '<dt>表示年</dt><dd>' + esc(d.year||'') + '</dd>'
+      + '<dt>この年の特許（グラフ）</dt><dd>' + esc(d.patentsYear||'') + ' 件</dd>'
+      + '<dt>全期間（CSV）</dt><dd>' + esc(d.patentsTotal||'') + ' 件</dd>'
+      + '</dl>';
+  }
+  function corpMarkerArrays(P, selectedName, jointSet) {
+    const selN = selectedName || '', jset = jointSet && jointSet.size ? jointSet : new Set();
+    const fill = [], size = [], lineW = [], lineC = [];
+    P.corporations.forEach(c => {
+      const orange = Boolean(selN) && c.name === selN;
+      const teal = !orange && jset.has(c.name);
+      if (orange) { fill.push('rgba(251, 191, 36, 0.95)'); size.push(17); lineW.push(2.4); lineC.push('#78350f'); }
+      else if (teal) { fill.push('rgba(45, 212, 191, 0.92)'); size.push(15); lineW.push(2.2); lineC.push('#0f766e'); }
+      else { fill.push('rgba(96, 165, 250, 0.88)'); size.push(11); lineW.push(0.5); lineC.push('rgba(12,14,18,0.95)'); }
+    });
+    return { fill, size, lineW, lineC };
+  }
+  function fieldLayerTraces(P) {
+    const F = P.vectorField, out = [];
+    if (!F) return out;
+    const phiStyle = (F.meta && F.meta.phiHeatmapStyle) || 'default';
+    const arrowMode = (F.meta && F.meta.arrowStyle) || 'magnitude';
+    const cbDark = {
+      title: { text: 'Φ', font: { color: '#b8c4d8' } }, len: 0.55, thickness: 12, x: 1.02,
+      tickfont: { color: '#8a96ac' }, bgcolor: 'rgba(18,21,28,0.85)', bordercolor: 'rgba(100,115,150,0.4)',
+    };
+    if (showHeatmap && F.heatmap && F.heatmap.z) {
+      const heatCbTitle = (F.meta && F.meta.heatmapColorbarTitle) ? String(F.meta.heatmapColorbarTitle) : '';
+      const hm = {
+        type: 'heatmap', x: F.heatmap.x, y: F.heatmap.y, z: F.heatmap.z,
+        zsmooth: 'best', opacity: heatmapOpacity, hoverinfo: 'skip', showscale: true,
+        colorbar: Object.assign({}, cbDark),
+        name: 'Φ'
+      };
+      if (phiStyle === 'valley_red_peak_blue') {
+        hm.zmin = -1;
+        hm.zmax = 1;
+        hm.colorscale = [
+          [0, 'rgb(215,75,75)'],
+          [0.5, 'rgb(44,46,56)'],
+          [1, 'rgb(72,118,220)']
+        ];
+        hm.reversescale = false;
+        hm.colorbar.title = { text: heatCbTitle || 'Φ（−1〜1, 谷＝赤・山＝青）', font: { color: '#b8c4d8' } };
+      } else {
+        hm.colorscale = 'Viridis';
+        hm.reversescale = false;
+        hm.colorbar = Object.assign({}, cbDark, {
+          title: { text: heatCbTitle || 'Φ', font: { color: '#b8c4d8' } },
+        });
+      }
+      out.push(hm);
+    }
+    if (showContour && F.phiContour && F.phiContour.z && !(F.meta && F.meta.hidePrimaryContour)) {
+      const nc = Math.max(6, Math.min(40, parseInt(String(nContourLevels), 10) || 14));
+      const cont = {
+        type: 'contour', x: F.phiContour.x, y: F.phiContour.y, z: F.phiContour.z, ncontours: nc,
+        contours: { coloring: 'lines', showlabels: false },
+        showscale: false, hoverinfo: 'skip', name: 'Φ 等高線'
+      };
+      if (phiStyle === 'valley_red_peak_blue') {
+        cont.line = { width: 1.0, color: 'rgba(150,160,185,0.38)' };
+        cont.colorscale = [[0, 'rgba(130,140,168,0.28)'], [0.5, 'rgba(160,170,200,0.4)'], [1, 'rgba(130,140,168,0.28)']];
+      } else {
+        cont.line = { width: 1.35 };
+        cont.colorscale = [[0,'rgba(180,200,255,0.22)'],[0.5,'rgba(220,230,255,0.42)'],[1,'rgba(160,190,255,0.28)']];
+      }
+      out.push(cont);
+    }
+    if (showContour && F.meta && F.meta.multiPeakContourTraces && Array.isArray(F.meta.multiPeakContourTraces)) {
+      F.meta.multiPeakContourTraces.forEach(function (tc) {
+        const ncM = Math.max(3, Math.min(8, parseInt(String(tc.ncontours), 10) || 5));
+        const lc = tc.color || 'rgba(226, 232, 240, 0.82)';
+        out.push({
+          type: 'contour',
+          x: tc.x,
+          y: tc.y,
+          z: tc.z,
+          ncontours: ncM,
+          connectgaps: false,
+          contours: { coloring: 'lines', showlabels: false },
+          line: { width: tc.lineWidth != null ? tc.lineWidth : 1.45, color: lc },
+          showscale: false,
+          hoverinfo: 'skip',
+          name: tc.name || 'Φ（峰）',
+          colorscale: [[0, lc], [1, lc]],
+        });
+      });
+    }
+    if (showArrows && F.arrowBins) {
+      const grayGrid = arrowMode === 'gray_grid';
+      F.arrowBins.forEach((bin, idx) => {
+        if (!bin.xl || !bin.xl.length) return;
+        const lw = grayGrid ? 1.1 : 2.05;
+        const col = grayGrid ? 'rgba(155,160,178,0.72)' : bin.color;
+        out.push({
+          type: 'scatter', mode: 'lines', x: bin.xl, y: bin.yl,
+          line: { color: col, width: lw },
+          opacity: grayGrid ? 0.68 : arrowOpacity, hoverinfo: 'skip',
+          name: grayGrid ? (idx === 0 ? '−∇Φ' : '_h') : (idx === 0 ? '−∇Φ（色＝|∇Φ|）' : '_h'),
+          showlegend: idx === 0
+        });
+      });
+    }
+    return out;
+  }
+  function fieldTraceCount(P) { return fieldLayerTraces(P).length; }
+  function buildTraces(P, patentColors, selectedCorpName, jointSet) {
+    const pc = patentColors || baseColorsForPatents(P), sel = selectedCorpName || '', jset = jointSet || jointPartnerHighlight;
+    const cm = corpMarkerArrays(P, sel, jset);
+    const layers = fieldLayerTraces(P);
+    return layers.concat([
+      { type: 'scattergl', mode: 'markers', x: P.patents.map(p => p.x), y: P.patents.map(p => p.y), text: P.patents.map(p => p.hover),
+        hoverinfo: 'text', customdata: P.patents.map(p => JSON.stringify({
+          type: 'patent',
+          id: p.id,
+          joint: !!p.joint,
+          coApplicants: p.coApplicants || [],
+          detail: p.detail || {},
+        })),
+        marker: { symbol: 'square', size: P.patents.map(p => p.id === selectedJointPatentId ? 11 : 8),
+          line: { width: P.patents.map(p => p.id === selectedJointPatentId ? 2 : 0.35), color: P.patents.map(p => p.id === selectedJointPatentId ? '#fbbf24' : 'rgba(12,14,18,0.85)') }, color: pc }, name: U.rightTraceName },
+      { type: 'scattergl', mode: 'markers', x: P.corporations.map(c => c.x), y: P.corporations.map(c => c.y), text: P.corporations.map(c => c.hover),
+        hoverinfo: 'text', customdata: P.corporations.map(c => JSON.stringify({
+          type: 'corp',
+          name: c.name,
+          detail: c.detail || { name: c.name, patentsYear: String(c.patentsYear), patentsTotal: String(c.patentsTotal), year: String(currentYear) },
+        })),
+        marker: { symbol: 'circle', size: cm.size, color: cm.fill, line: { width: cm.lineW, color: cm.lineC } }, name: U.leftTraceName }
+    ]);
+  }
+  const layout = {
+    paper_bgcolor: '#12151c',
+    plot_bgcolor: '#12151c',
+    font: { color: '#c8cdd8', size: 12 },
+    dragmode: 'pan',
+    hovermode: 'closest',
+    title: { text: '', font: { size: 14, color: '#e8eaf0' } },
+    xaxis: {
+      title: { text: 'latent z1', font: { color: '#a8b4c8' } },
+      zeroline: false,
+      gridcolor: 'rgba(80, 95, 130, 0.28)', linecolor: 'rgba(100, 115, 150, 0.45)',
+      tickfont: { color: '#8a96ac' },
+    },
+    yaxis: {
+      title: { text: 'latent z2', font: { color: '#a8b4c8' } },
+      zeroline: false, scaleanchor: 'x', scaleratio: 1,
+      gridcolor: 'rgba(80, 95, 130, 0.28)', linecolor: 'rgba(100, 115, 150, 0.45)',
+      tickfont: { color: '#8a96ac' },
+    },
+    legend: { orientation: 'h', y: 1.06, font: { color: '#b8c4d8' }, bgcolor: 'rgba(18, 21, 28, 0.72)' },
+    margin: { l: 56, r: 24, t: 52, b: 48 },
+    hoverlabel: {
+      bgcolor: 'rgba(15,23,42,0.98)',
+      bordercolor: '#475569',
+      align: 'left',
+      namelength: -1,
+      font: { color: '#f1f5f9', size: 12, family: 'Segoe UI, system-ui, sans-serif' },
+    },
+  };
+  const plotOpts = { responsive: true, scrollZoom: true };
+  const plotEl = document.getElementById('plot'), sel = document.getElementById('corpPick');
+  const corpSelectWrap = document.getElementById('corpSelectWrap'), corpStatusEl = document.getElementById('corpSelectionStatus');
+  const yearSlider = document.getElementById('yearSlider'), yearCurrent = document.getElementById('yearCurrent');
+  const yearMinLabel = document.getElementById('yearMinLabel'), yearMaxLabel = document.getElementById('yearMaxLabel');
+  const chkHeatmap = document.getElementById('chkHeatmap'), chkContour = document.getElementById('chkContour'), chkArrows = document.getElementById('chkArrows');
+  const rngHeatOp = document.getElementById('rngHeatOp'), rngArrowOp = document.getElementById('rngArrowOp');
+  const lblHeatOp = document.getElementById('lblHeatOp'), lblArrowOp = document.getElementById('lblArrowOp'), selNCont = document.getElementById('selNCont');
+  if (rngHeatOp) heatmapOpacity = parseFloat(rngHeatOp.value) || heatmapOpacity;
+  if (rngArrowOp) arrowOpacity = parseFloat(rngArrowOp.value) || arrowOpacity;
+  if (selNCont) nContourLevels = parseInt(selNCont.value, 10) || nContourLevels;
+  const yearKeys = Object.keys(DATA).sort((a,b) => Number(a)-Number(b));
+  const nYears = yearKeys.length;
+  yearMinLabel.textContent = yearKeys[0] + '年'; yearMaxLabel.textContent = yearKeys[nYears-1] + '年';
+  yearSlider.min = 0; yearSlider.max = Math.max(0, nYears-1); yearSlider.step = 1;
+  yearSlider.value = String(Math.max(0, yearKeys.indexOf(String(WRAP.defaultYear))));
+  if (nYears <= 1) yearSlider.disabled = true;
+  function sliderIndexToYear(idx) { const i = Math.min(nYears-1, Math.max(0, parseInt(String(idx),10)||0)); return yearKeys[i]; }
+  function patentTraceIndex(P) { return fieldTraceCount(P); }
+  function corpTraceIndex(P) { return fieldTraceCount(P) + 1; }
+  function updateLayoutTitle() {
+    const P = currentPayload();
+    const t = U.layoutTitleTemplate || '表示年: {year} ／ 特許 {nRight} · 企業 {nLeft}';
+    layout.title.text = t
+      .replace('{year}', currentYear)
+      .replace('{nRight}', String(P.patents.length))
+      .replace('{nLeft}', String(P.corporations.length));
+  }
+  function rebuildCorpSelect() {
+    const P = currentPayload();
+    const tpl = U.corpOptionTemplate || '{name} ／ この年 {patentsYear} · 全期間 {patentsTotal}';
+    while (sel.options.length > 1) sel.remove(1);
+    P.corporations.forEach(c => { const o = document.createElement('option'); o.value = c.name;
+      o.textContent = tpl
+        .replace('{name}', c.name)
+        .replace('{patentsYear}', String(c.patentsYear))
+        .replace('{patentsTotal}', String(c.patentsTotal));
+      sel.appendChild(o); });
+  }
+  function refreshStatusBar() {
+    const P = currentPayload(), corpName = sel.value || '';
+    corpSelectWrap.classList.toggle('has-selection', Boolean(corpName));
+    corpStatusEl.replaceChildren();
+    corpStatusEl.classList.remove('is-joint-patent');
+    if (corpName) {
+      corpStatusEl.classList.add('is-active');
+      corpStatusEl.innerHTML = '<span class="corp-status-label">選択中</span> <strong>' + corpName + '</strong> <span>'
+        + (U.statusYearRightPrefix || ' ／ この年の特許 ')
+        + (P.corpToPatentIds[corpName]||[]).length
+        + (U.statusYearRightSuffix || ' 件') + '</span>';
+      return;
+    }
+    if (jointPartnerHighlight.size && selectedJointPatentId) {
+      corpStatusEl.classList.add('is-active', 'is-joint-patent');
+      corpStatusEl.textContent = (U.jointStatusPrefix || '共同出願特許 ') + selectedJointPatentId;
+      return;
+    }
+    corpStatusEl.classList.remove('is-active');
+    corpStatusEl.textContent = U.idleHint || '企業・特許をクリックで強調。';
+  }
+  function syncYearFromSlider() { currentYear = sliderIndexToYear(yearSlider.value); yearCurrent.textContent = currentYear + '年'; }
+  function redrawYear() { syncYearFromSlider(); sel.value = ''; jointPartnerHighlight = new Set(); selectedJointPatentId = '';
+    const P = currentPayload();
+    updateLayoutTitle(); refreshStatusBar(); renderDetailPlaceholder();
+    refreshCategoryLegend(P);
+    Plotly.react('plot', buildTraces(P, baseColorsForPatents(P), '', jointPartnerHighlight), layout, plotOpts); rebuildCorpSelect(); }
+  function reactAll() { const P = currentPayload(), k = sel.value || ''; Plotly.react('plot', buildTraces(P, patentColorsForCorp(P, k), k, jointPartnerHighlight), layout, plotOpts); }
+  function syncAdjLabels() { if (lblHeatOp) lblHeatOp.textContent = '('+heatmapOpacity.toFixed(2)+')'; if (lblArrowOp) lblArrowOp.textContent = '('+arrowOpacity.toFixed(2)+')'; }
+  const selColorBy = document.getElementById('selColorBy');
+  if (selColorBy) {
+    selColorBy.addEventListener('change', () => {
+      colorBy = selColorBy.value || 'joint';
+      refreshCategoryLegend(currentPayload());
+      reactAll();
+    });
+  }
+  syncYearFromSlider(); syncAdjLabels(); updateLayoutTitle(); refreshStatusBar();
+  refreshCategoryLegend(currentPayload());
+  Plotly.newPlot('plot', buildTraces(currentPayload(), null, '', jointPartnerHighlight), layout, plotOpts); rebuildCorpSelect();
+  yearSlider.addEventListener('input', () => redrawYear());
+  chkHeatmap.addEventListener('change', () => { showHeatmap = chkHeatmap.checked; reactAll(); });
+  chkContour.addEventListener('change', () => { showContour = chkContour.checked; reactAll(); });
+  chkArrows.addEventListener('change', () => { showArrows = chkArrows.checked; reactAll(); });
+  rngHeatOp.addEventListener('input', () => { heatmapOpacity = parseFloat(rngHeatOp.value)||0.28; syncAdjLabels(); reactAll(); });
+  rngArrowOp.addEventListener('input', () => { arrowOpacity = parseFloat(rngArrowOp.value)||0.9; syncAdjLabels(); reactAll(); });
+  selNCont.addEventListener('change', () => { nContourLevels = parseInt(selNCont.value,10)||14; reactAll(); });
+  function applyHighlight(corpName) { jointPartnerHighlight = new Set(); selectedJointPatentId = ''; const P = currentPayload();
+    Plotly.react('plot', buildTraces(P, patentColorsForCorp(P, corpName), corpName||'', jointPartnerHighlight), layout, plotOpts); sel.value = corpName||''; refreshStatusBar(); }
+  sel.addEventListener('change', () => applyHighlight(sel.value));
+  document.getElementById('btnClear').addEventListener('click', () => applyHighlight(''));
+  function parseClickMeta(pt) {
+    let meta = {};
+    try {
+      const s = typeof pt.customdata === 'string' ? pt.customdata : (Array.isArray(pt.customdata) ? pt.customdata[0] : '');
+      if (s && s.charAt(0) === '{') meta = JSON.parse(s);
+    } catch (e) {}
+    return meta;
+  }
+  plotEl.on('plotly_click', (ev) => {
+    const pt = ev.points && ev.points[0]; if (!pt) return;
+    const P = currentPayload(), pi = patentTraceIndex(P), ci = corpTraceIndex(P);
+    if (pt.curveNumber === ci) {
+      const meta = parseClickMeta(pt);
+      if (meta.type === 'corp' && meta.detail) renderCorpDetail(meta.detail);
+      const nm = meta.name || (meta.detail && meta.detail.name) || '';
+      if (nm) { applyHighlight(nm); return; }
+      return;
+    }
+    if (pt.curveNumber !== pi) return;
+    const meta = parseClickMeta(pt);
+    if (meta.type === 'patent' && meta.detail) renderPatentDetail(meta.detail);
+    else if (meta.detail) renderPatentDetail(meta.detail);
+    if (meta.joint && Array.isArray(meta.coApplicants) && meta.coApplicants.length >= 2) {
+      selectedJointPatentId = String(meta.id||''); jointPartnerHighlight = new Set(meta.coApplicants.map(String)); sel.value = '';
+      Plotly.react('plot', buildTraces(P, baseColorsForPatents(P), '', jointPartnerHighlight), layout, plotOpts); refreshStatusBar(); return;
+    }
+    selectedJointPatentId = ''; jointPartnerHighlight = new Set();
+    Plotly.react('plot', buildTraces(P, patentColorsForCorp(P, sel.value||''), sel.value||'', jointPartnerHighlight), layout, plotOpts); refreshStatusBar();
+  });
+  </script>
+</body>
+</html>

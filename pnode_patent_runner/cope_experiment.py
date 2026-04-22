@@ -60,6 +60,9 @@ BASELINE_METHOD_SPECS: Tuple[Tuple[str, str], ...] = (
     ("RNN+VGAE", "rnn"),
     ("NeuralODE", "neural_ode"),
     ("P-NODE", "pnode"),
+    ("P-NODE-ExplicitA", "pnode_explicit"),
+    ("P-NODE+Res", "pnode_residual"),
+    ("PC-PNODE", "pnode_pc"),
     ("P-NODE-Energy-TD", "pnode_energy"),
     (METHOD_SHORT_NAME, "cope"),
 )
@@ -380,12 +383,34 @@ class ModelBuildKw:
     cosine_logit_scale: float = 5.0
     w_pot_init: float = 0.05
     rnn_history_len: int = 4
+    """P-NODE 用: 直近何年分の z を結合して ODE 初値に射影するか（1 で従来どおり）。"""
+    pnode_history_len: int = 1
+    pnode_ode_method: str = "dopri5"
+    pnode_ode_n_steps: int = 4
     density_calibrated_potential: bool = False
     density_log_weight: float = 1.0
     density_ema_momentum: float = 0.05
     time_dependent_potential: bool = False
     year_min: Optional[int] = None
     year_max: Optional[int] = None
+    #: ベンチマーク P-NODE / P-NODE+Res: ``rff``（sin/cos）または ``mlp``（z から直接）
+    pnode_potential_feature: str = "mlp"
+    #: ``rff`` 時のみ: True なら従来どおり B を固定（再現性用）
+    pnode_rff_frozen_basis: bool = False
+    #: P-NODE 系で CalibratedPotentialNet（Φ = φ_nn - w log p_hist）を使う
+    pnode_density_calibrated: bool = False
+    pnode_density_log_weight: float = 1.0
+    pnode_density_ema_momentum: float = 0.05
+    #: 履歴 K>1 のとき ``linear``（従来）または ``gru``
+    pnode_hist_fuse_mode: str = "gru"
+    #: PC-PNODE: w_ρ 初期値（密度引力強度）
+    pc_w_rho_init: float = 0.1
+    #: PC-PNODE: w_Δ 初期値（トレンド引力強度）
+    pc_w_delta_init: float = 0.1
+    #: PC-PNODE: KDE 帯域幅の log 初期値
+    pc_log_bandwidth_init: float = 0.0
+    #: PC-PNODE: density-align 損失の重み（λ_da）
+    pc_density_align_weight: float = 0.005
 
 
 def build_baseline_model(
@@ -394,7 +419,7 @@ def build_baseline_model(
     bundle: CopeGraphBundle,
     kw: ModelBuildKw,
 ) -> nn.Module:
-    """`key` は `static` / `rnn` / `neural_ode` / `pnode` / `pnode_energy` / `cope`。"""
+    """`key` は `static` / `rnn` / `neural_ode` / `pnode` / `pnode_explicit` / `pnode_residual` / `pnode_energy` / `cope`。"""
     common = dict(
         num_nodes=bundle.total_n,
         num_corps=bundle.num_corps,
@@ -439,7 +464,20 @@ def build_baseline_model(
         w_pot_init=0.0,
         variant=key,
         rnn_history_len=kw.rnn_history_len,
-        time_dependent_potential=bool(kw.time_dependent_potential) and key == "pnode",
+        pnode_history_len=int(kw.pnode_history_len),
+        time_dependent_potential=bool(kw.time_dependent_potential)
+        and key in ("pnode", "neural_ode"),
         year_min=y_min,
         year_max=y_max,
+        pnode_ode_method=str(kw.pnode_ode_method),
+        pnode_ode_n_steps=int(kw.pnode_ode_n_steps),
+        pnode_potential_feature=str(kw.pnode_potential_feature),
+        pnode_rff_frozen_basis=bool(kw.pnode_rff_frozen_basis),
+        pnode_density_calibrated=bool(kw.pnode_density_calibrated),
+        pnode_density_log_weight=float(kw.pnode_density_log_weight),
+        pnode_density_ema_momentum=float(kw.pnode_density_ema_momentum),
+        pnode_hist_fuse_mode=str(kw.pnode_hist_fuse_mode),
+        pc_w_rho_init=float(kw.pc_w_rho_init),
+        pc_w_delta_init=float(kw.pc_w_delta_init),
+        pc_log_bandwidth_init=float(kw.pc_log_bandwidth_init),
     ).to(device)

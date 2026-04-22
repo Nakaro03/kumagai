@@ -11,14 +11,24 @@ import torch.nn.functional as F
 from torch_geometric.data import Data
 
 from pnode_patent_runner.unified_training import (
+    POTENTIAL_REG_INNER_SCALE,
     README_DEFAULT_BETA,
     README_DEFAULT_FUTURE_LINK_WEIGHT,
     README_DEFAULT_LATENT_PRED_WEIGHT,
     README_DEFAULT_NUM_NEG_FUTURE,
     README_DEFAULT_NUM_NEG_RECON,
     README_DEFAULT_POS_WEIGHT,
+    README_DEFAULT_POTENTIAL_REG_MODE,
     README_DEFAULT_POTENTIAL_WEIGHT,
+    README_DEFAULT_TRAJECTORY_DELTA_SOURCE,
+    README_DEFAULT_TRAJECTORY_GRAD_FLOOR,
+    README_DEFAULT_TRAJECTORY_GRAD_FLOOR_WEIGHT,
+    README_DEFAULT_TRAJECTORY_LOSS_TYPE,
     README_DEFAULT_TRAJECTORY_WEIGHT,
+    _future_link_pos_perm,
+    future_link_metrics_from_scores,
+    loss_aux_ramp_factor,
+    rollout_z_pred_multistep,
 )
 from pnode_patent_runner.unified_vgae_td import UnifiedVGAETD
 
@@ -76,6 +86,11 @@ def compute_loss_standardized_td(
     num_neg_recon: int = README_DEFAULT_NUM_NEG_RECON,
     num_neg_future: int = README_DEFAULT_NUM_NEG_FUTURE,
     precomputed_z_mu_logvar: Optional[Tuple[torch.Tensor, torch.Tensor, torch.Tensor]] = None,
+    potential_reg_mode: str = README_DEFAULT_POTENTIAL_REG_MODE,
+    trajectory_delta_source: str = README_DEFAULT_TRAJECTORY_DELTA_SOURCE,
+    trajectory_loss_type: str = README_DEFAULT_TRAJECTORY_LOSS_TYPE,
+    trajectory_grad_floor: float = README_DEFAULT_TRAJECTORY_GRAD_FLOOR,
+    trajectory_grad_floor_weight: float = README_DEFAULT_TRAJECTORY_GRAD_FLOOR_WEIGHT,
 ) -> Tuple[torch.Tensor, Dict[str, float]]:
     device = data_t.x.device
     pn = model.temporal_predictor.potential_net
@@ -129,6 +144,7 @@ def compute_loss_standardized_td(
 
     potential_loss = torch.tensor(0.0, device=device)
     trajectory_loss = torch.tensor(0.0, device=device)
+    grad_phi_l2_for_breakdown = 0.0
 
     yi0 = pn.year_tensor(y0, z_t.size(0), device)
     phi_z = pn(z_t, yi0)
@@ -136,7 +152,19 @@ def compute_loss_standardized_td(
         phi_z = phi_z.squeeze(-1)
 
     if potential_weight > 0:
-        potential_loss = 0.01 * (phi_z ** 2).mean()
+        prm = (potential_reg_mode or "l2").strip().lower()
+        if prm == "l2":
+            potential_loss = POTENTIAL_REG_INNER_SCALE * (phi_z ** 2).mean()
+        elif prm in ("log1p_sq", "log1p", "log"):
+            potential_loss = POTENTIAL_REG_INNER_SCALE * torch.log(1.0 + phi_z**2).mean()
+        elif prm in ("centered_l2", "center_l2", "variance_l2"):
+            pc = phi_z - phi_z.mean()
+            potential_loss = POTENTIAL_REG_INNER_SCALE * (pc**2).mean()
+        else:
+            raise ValueError(
+                f"unknown potential_reg_mode: {potential_reg_mode!r} "
+                f"(use l2, log1p_sq, centered_l2)"
+            )
 
     if trajectory_weight > 0 and data_t.active_mask.any():
         grad_z = torch.autograd.grad(
@@ -144,15 +172,41 @@ def compute_loss_standardized_td(
         )[0]
         v_theory = -grad_z
         am = data_t.active_mask
-        delta = mu_t1_actual.detach() - z_t
+        tds = (trajectory_delta_source or "z").strip().lower()
+        if tds in ("z", "reparam", "sample"):
+            anchor = z_t
+        elif tds in ("mu", "mean", "encoder"):
+            anchor = mu_t.detach()
+        else:
+            raise ValueError(
+                f"unknown trajectory_delta_source: {trajectory_delta_source!r} (use z, mu)"
+            )
+        delta = mu_t1_actual.detach() - anchor
         d = delta[am]
         v = v_theory[am]
-        cos = F.cosine_similarity(
-            F.normalize(d, dim=1, eps=1e-8),
-            F.normalize(v, dim=1, eps=1e-8),
-            dim=1,
-        )
-        trajectory_loss = (1.0 - cos).mean()
+        grad_phi_l2_for_breakdown = float(v.norm(p=2, dim=1).mean().detach().item())
+        du = F.normalize(d, dim=1, eps=1e-8)
+        vu = F.normalize(v, dim=1, eps=1e-8)
+        cos = F.cosine_similarity(du, vu, dim=1)
+        tls = (trajectory_loss_type or "cosine").strip().lower()
+        if tls in ("cosine", "cos"):
+            trajectory_loss = (1.0 - cos).mean()
+        elif tls in ("smooth1mcos", "smooth_l1_mcos", "smooth_cos"):
+            trajectory_loss = F.smooth_l1_loss(
+                1.0 - cos, torch.zeros_like(cos), beta=0.1, reduction="mean"
+            )
+        elif tls in ("huber_vec", "vec_smooth_l1", "smoothed_l1_dir"):
+            trajectory_loss = F.smooth_l1_loss(du, vu, beta=0.1, reduction="mean")
+        else:
+            raise ValueError(
+                f"unknown trajectory_loss_type: {trajectory_loss_type!r} "
+                f"(use cosine, smooth1mcos, huber_vec)"
+            )
+        tgf = float(trajectory_grad_floor)
+        tgw = float(trajectory_grad_floor_weight)
+        if tgw > 0.0 and tgf > 0.0:
+            gn = v.norm(p=2, dim=1)
+            trajectory_loss = trajectory_loss + tgw * (F.relu(tgf - gn) ** 2).mean()
 
     z_t1_pred = model.predict_future(z_history_for_prediction, y0)
     latent_pred_loss = F.mse_loss(
@@ -204,6 +258,7 @@ def compute_loss_standardized_td(
         "future_link": float(weighted_future.item()),
         "potential": float(weighted_potential.item()),
         "trajectory": float(weighted_trajectory.item()),
+        "grad_phi_l2": float(grad_phi_l2_for_breakdown),
     }
     return total_loss, breakdown
 
@@ -223,6 +278,10 @@ def future_link_auc_scores_td(
     if year_prev not in graphs or year_next not in graphs:
         return np.array([0, 1]), np.array([0.5, 0.5])
     idx0 = years_sorted.index(year_prev)
+    idx1 = years_sorted.index(year_next)
+    n_steps = idx1 - idx0
+    if n_steps < 1:
+        return np.array([0, 1]), np.array([0.5, 0.5])
     history_len = int(getattr(model, "temporal_history_len", 1))
     start_idx = max(0, idx0 - history_len + 1)
     data_next = graphs[year_next]
@@ -235,7 +294,7 @@ def future_link_auc_scores_td(
         data_prev = graphs[year_prev].to(device)
         z, _, _ = model.encode(data_prev.x, data_prev.edge_index)
         z_hist.append(z)
-        z_pred = model.predict_future(z_hist, year_prev)
+        z_pred = rollout_z_pred_multistep(model, z_hist, years_sorted, idx0, n_steps)
 
     ei = data_next.edge_index.to(device)
     mask = (ei[0] < num_corps) & (ei[1] >= num_corps)
@@ -244,7 +303,9 @@ def future_link_auc_scores_td(
         return np.array([0, 1]), np.array([0.5, 0.5])
 
     n_pos = min(max_pos, pos_ei.size(1))
-    perm = torch.randperm(pos_ei.size(1), device=device)[:n_pos]
+    perm = _future_link_pos_perm(
+        year_prev, year_next, max_pos, neg_ratio, pos_ei.size(1), device
+    )[:n_pos]
     pos_ei = pos_ei[:, perm]
 
     active_c = torch.unique(pos_ei[0])
@@ -252,7 +313,10 @@ def future_link_auc_scores_td(
     pos_set = {tuple(pos_ei[:, i].tolist()) for i in range(pos_ei.size(1))}
 
     neg_list = []
-    rng = np.random.default_rng(0)
+    neg_seed = (
+        (int(year_prev) % 500_000) * 800_009 + (int(year_next) % 500_000) * 400_009 + n_pos * 11
+    ) % (2**32 - 1)
+    rng = np.random.default_rng(int(neg_seed))
     ac = active_c.cpu().numpy()
     ap = active_p.cpu().numpy()
     tries = 0
@@ -303,22 +367,15 @@ def evaluate_val_future_link_metrics_td(
     num_corps: int,
     device: torch.device,
 ) -> Dict[str, float]:
-    """最終2年の future-link について ROC-AUC と AP（`evaluate_val_future_link_metrics` と同型）。"""
-    from sklearn.metrics import average_precision_score, roc_auc_score
-
+    """最終2年の future-link について ROC-AUC・AP・ECE（`evaluate_val_future_link_metrics` と同型）。"""
     years = sorted(graphs.keys())
     if len(years) < 2:
-        return {"auc": float("nan"), "ap": float("nan")}
+        return {"auc": float("nan"), "ap": float("nan"), "ece": float("nan")}
     y0, y1 = years[-2], years[-1]
     yt, yscore = future_link_auc_scores_td(
         model, graphs, num_corps, device, year_prev=y0, year_next=y1
     )
-    if len(np.unique(yt)) < 2:
-        return {"auc": float("nan"), "ap": float("nan")}
-    return {
-        "auc": float(roc_auc_score(yt, yscore)),
-        "ap": float(average_precision_score(yt, yscore)),
-    }
+    return future_link_metrics_from_scores(yt, yscore)
 
 
 def evaluate_val_future_link_metrics_for_years_td(
@@ -329,10 +386,8 @@ def evaluate_val_future_link_metrics_for_years_td(
     year_prev: int,
     year_next: int,
 ) -> Dict[str, float]:
-    from sklearn.metrics import average_precision_score, roc_auc_score
-
     if year_prev not in graphs or year_next not in graphs:
-        return {"auc": float("nan"), "ap": float("nan")}
+        return {"auc": float("nan"), "ap": float("nan"), "ece": float("nan")}
     yt, yscore = future_link_auc_scores_td(
         model,
         graphs,
@@ -341,12 +396,37 @@ def evaluate_val_future_link_metrics_for_years_td(
         year_prev=year_prev,
         year_next=year_next,
     )
-    if len(np.unique(yt)) < 2:
-        return {"auc": float("nan"), "ap": float("nan")}
-    return {
-        "auc": float(roc_auc_score(yt, yscore)),
-        "ap": float(average_precision_score(yt, yscore)),
-    }
+    return future_link_metrics_from_scores(yt, yscore)
+
+
+def evaluate_future_link_metrics_for_horizon_gaps_td(
+    model: UnifiedVGAETD,
+    graphs: Dict[int, Data],
+    num_corps: int,
+    device: torch.device,
+    horizon_gaps: List[int],
+    year_next: Optional[int] = None,
+) -> Dict[str, Dict[str, float]]:
+    """`evaluate_future_link_metrics_for_horizon_gaps` の TD 版（decode に暦年が必要）。"""
+    nanm = {"auc": float("nan"), "ap": float("nan"), "ece": float("nan")}
+    years_sorted = sorted(graphs.keys())
+    if not years_sorted or not horizon_gaps:
+        return {str(k): dict(nanm) for k in horizon_gaps}
+    yT = year_next if year_next is not None else years_sorted[-1]
+    if yT not in graphs:
+        return {str(k): dict(nanm) for k in horizon_gaps}
+    idx_T = years_sorted.index(yT)
+    out: Dict[str, Dict[str, float]] = {}
+    for k in sorted(set(int(x) for x in horizon_gaps)):
+        if k < 1 or idx_T < k:
+            out[str(k)] = dict(nanm)
+            continue
+        y_prev = years_sorted[idx_T - k]
+        yt, ys = future_link_auc_scores_td(
+            model, graphs, num_corps, device, year_prev=y_prev, year_next=yT
+        )
+        out[str(k)] = future_link_metrics_from_scores(yt, ys)
+    return out
 
 
 def train_one_epoch_td(
@@ -361,7 +441,19 @@ def train_one_epoch_td(
     model.train()
     years = sorted(graphs.keys())
     pairs = list(zip(years[:-1], years[1:]))
-    agg = {k: 0.0 for k in ("total", "recon", "kl", "latent_pred", "future_link", "potential", "trajectory")}
+    agg = {
+        k: 0.0
+        for k in (
+            "total",
+            "recon",
+            "kl",
+            "latent_pred",
+            "future_link",
+            "potential",
+            "trajectory",
+            "grad_phi_l2",
+        )
+    }
     n = 0
     history_len = int(getattr(model, "temporal_history_len", 1))
     for y0, y1 in pairs:
@@ -415,25 +507,48 @@ def train_model_td(
     future_link_weight: float = README_DEFAULT_FUTURE_LINK_WEIGHT,
     beta: float = README_DEFAULT_BETA,
     pos_weight: float = README_DEFAULT_POS_WEIGHT,
+    loss_aux_warmup_epochs: int = 0,
+    potential_reg_mode: str = README_DEFAULT_POTENTIAL_REG_MODE,
+    trajectory_delta_source: str = README_DEFAULT_TRAJECTORY_DELTA_SOURCE,
+    trajectory_loss_type: str = README_DEFAULT_TRAJECTORY_LOSS_TYPE,
+    trajectory_grad_floor: float = README_DEFAULT_TRAJECTORY_GRAD_FLOOR,
+    trajectory_grad_floor_weight: float = README_DEFAULT_TRAJECTORY_GRAD_FLOOR_WEIGHT,
 ):
     device = next(model.parameters()).device
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    loss_kw: Dict[str, Any] = dict(
+    loss_kw_base: Dict[str, Any] = dict(
         beta=beta,
         pos_weight=pos_weight,
         latent_pred_weight=latent_pred_weight,
         future_link_weight=future_link_weight,
-        potential_weight=potential_weight,
-        trajectory_weight=trajectory_weight,
         num_neg_recon=num_neg_recon,
         num_neg_future=num_neg_future,
+        potential_reg_mode=str(potential_reg_mode),
+        trajectory_delta_source=str(trajectory_delta_source),
+        trajectory_loss_type=str(trajectory_loss_type),
+        trajectory_grad_floor=float(trajectory_grad_floor),
+        trajectory_grad_floor_weight=float(trajectory_grad_floor_weight),
     )
     history: Dict[str, Any] = {"loss": [], "val_auc": []}
-    _comp_keys = ("recon", "kl", "latent_pred", "future_link", "potential", "trajectory")
+    _comp_keys = (
+        "recon",
+        "kl",
+        "latent_pred",
+        "future_link",
+        "potential",
+        "trajectory",
+        "grad_phi_l2",
+    )
     history["train_components"] = {k: [] for k in _comp_keys}
     last_breakdown: Optional[Dict[str, float]] = None
     best_auc = 0.0
-    for _ in range(num_epochs):
+    for ep in range(num_epochs):
+        r = loss_aux_ramp_factor(ep, int(loss_aux_warmup_epochs))
+        loss_kw: Dict[str, Any] = {
+            **loss_kw_base,
+            "potential_weight": float(potential_weight) * r,
+            "trajectory_weight": float(trajectory_weight) * r,
+        }
         tr = train_one_epoch_td(
             model, graphs, num_corps, hist_edges, optimizer, device, loss_kw
         )

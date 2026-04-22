@@ -512,6 +512,121 @@ def compute_vector_field_density_potential_for_plotly(
     }
 
 
+def compute_delta_phi_grid(
+    node_xy: np.ndarray,
+    delta_phi: np.ndarray,
+    x_coords: np.ndarray,
+    y_coords: np.ndarray,
+    bandwidth: float = 0.3,
+) -> np.ndarray:
+    """
+    ノードごとの ΔΦ を空間上のガウスカーネル加重平均でグリッドに展開する。
+
+    返り値は shape (len(y_coords), len(x_coords)) の 2D 配列。
+    """
+    X, Y = np.meshgrid(x_coords, y_coords)
+    ny, nx = X.shape
+    G = ny * nx
+    bw2 = 2.0 * max(float(bandwidth), 1e-6) ** 2
+
+    grid_pts = np.stack([X.ravel(), Y.ravel()], axis=1).astype(np.float32)
+    pts = np.asarray(node_xy, dtype=np.float32)
+    dphi = np.asarray(delta_phi, dtype=np.float32)
+    N = pts.shape[0]
+    Z_flat = np.zeros(G, dtype=np.float32)
+
+    batch = max(1, min(G, int(200_000_000 / max(N * 4, 1))))
+    for start in range(0, G, batch):
+        end = min(start + batch, G)
+        gp = grid_pts[start:end]
+        d2 = np.sum((gp[:, None, :] - pts[None, :, :]) ** 2, axis=2)
+        w = np.exp(-d2 / bw2)
+        ws = w.sum(axis=1)
+        wd = (w * dphi[None, :]).sum(axis=1)
+        Z_flat[start:end] = np.where(ws > 1e-10, wd / ws, 0.0)
+
+    return Z_flat.reshape(ny, nx)
+
+
+def compute_node_phi_density_grid(
+    node_xy: np.ndarray,
+    node_phi: np.ndarray,
+    x_coords: np.ndarray,
+    y_coords: np.ndarray,
+    bandwidth: float = 0.3,
+    density_floor_pct: float = 10.0,
+) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    ノード位置とΦ値からKDE加重平均Φグリッドと密度グリッドを計算する。
+
+    低密度領域は NaN にマスクし、Plotly 上で透明になる。
+
+    Returns
+    -------
+    phi_grid : (len(y_coords), len(x_coords))
+        KDE加重平均Φ（低密度領域は NaN）。
+    density_grid : 同形状
+        正規化前の密度（デバッグ用）。
+    """
+    X, Y = np.meshgrid(x_coords, y_coords)
+    ny, nx = X.shape
+    G = ny * nx
+    bw2 = 2.0 * max(float(bandwidth), 1e-6) ** 2
+
+    grid_pts = np.stack([X.ravel(), Y.ravel()], axis=1).astype(np.float32)
+    pts = np.asarray(node_xy, dtype=np.float32)
+    phi = np.asarray(node_phi, dtype=np.float32)
+    N = pts.shape[0]
+
+    Z_flat = np.zeros(G, dtype=np.float32)
+    D_flat = np.zeros(G, dtype=np.float32)
+
+    batch = max(1, min(G, int(200_000_000 / max(N * 4, 1))))
+    for start in range(0, G, batch):
+        end = min(start + batch, G)
+        gp = grid_pts[start:end]
+        d2 = np.sum((gp[:, None, :] - pts[None, :, :]) ** 2, axis=2)
+        w = np.exp(-d2 / bw2)
+        ws = w.sum(axis=1)
+        wd = (w * phi[None, :]).sum(axis=1)
+        D_flat[start:end] = ws
+        Z_flat[start:end] = np.where(ws > 1e-10, wd / ws, 0.0)
+
+    D = D_flat.reshape(ny, nx)
+    Z = Z_flat.reshape(ny, nx)
+
+    pos = D[D > 1e-10]
+    if len(pos) > 0:
+        thresh = float(np.percentile(pos, max(0, min(99, density_floor_pct))))
+        Z[D < thresh] = np.nan
+    else:
+        Z[:] = np.nan
+
+    return Z, D
+
+
+def compute_node_movement_arrows(
+    curr_entries: List[Dict[str, Any]],
+    prev_map: Dict[str, Dict[str, Any]],
+    key_field: str,
+) -> Dict[str, List[Any]]:
+    """ノード移動ベクトル (z_{t-1} → z_t) をプロット用に返す。"""
+    xl: List[Any] = []
+    yl: List[Any] = []
+    for entry in curr_entries:
+        k = entry.get(key_field, "")
+        if not k or k not in prev_map:
+            continue
+        prev = prev_map[k]
+        x0, y0 = prev["x"], prev["y"]
+        x1, y1 = entry["x"], entry["y"]
+        if abs(x1 - x0) < 1e-12 and abs(y1 - y0) < 1e-12:
+            continue
+        xl.extend([x0, x1, None])
+        yl.extend([y0, y1, None])
+    return {"xl": xl, "yl": yl}
+
+
 def merge_payload_with_vector_field(
     base: Dict[str, Any],
     vector_field: Dict[str, Any],
@@ -535,6 +650,8 @@ def alt_dark_ui_labels(
             "leftSelectLabel": "企業",
             "rightTraceName": "特許",
             "leftTraceName": "企業",
+            "rightNodeLabel": "特許",
+            "leftNodeLabel": "企業",
             "layoutTitleTemplate": "表示年: {year} ／ 特許 {nRight} · 企業 {nLeft}",
             "corpOptionTemplate": "{name} ／ この年 {patentsYear} · 全期間 {patentsTotal}",
             "statusYearRightPrefix": " ／ この年の特許 ",
@@ -555,6 +672,8 @@ def alt_dark_ui_labels(
             "leftSelectLabel": "著者",
             "rightTraceName": "論文",
             "leftTraceName": "著者",
+            "rightNodeLabel": "論文",
+            "leftNodeLabel": "著者",
             "layoutTitleTemplate": "論文年: {year} ／ 論文 {nRight} · 著者 {nLeft}",
             "corpOptionTemplate": "{name} ／ この年 {patentsYear} 本 · 全期間 {patentsTotal} 本",
             "statusYearRightPrefix": " ／ この年の論文 ",
@@ -575,6 +694,8 @@ def alt_dark_ui_labels(
         "leftSelectLabel": "著者",
         "rightTraceName": "トピック",
         "leftTraceName": "著者",
+        "rightNodeLabel": "トピック",
+        "leftNodeLabel": "著者",
         "layoutTitleTemplate": "年: {year} ／ トピック {nRight} · 著者 {nLeft}",
         "corpOptionTemplate": "{name} ／ この年 {patentsYear} トピック · 全期間 {patentsTotal} 本",
         "statusYearRightPrefix": " ／ この年のトピック ",

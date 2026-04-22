@@ -92,6 +92,13 @@
         <label><input type="checkbox" id="chkHeatmap" checked /> Φ ヒートマップ</label>
         <label><input type="checkbox" id="chkContour" checked /> Φ 等高線</label>
         <label><input type="checkbox" id="chkArrows" checked /> −∇Φ 短矢印</label>
+        <label style="color:#f87171"><input type="checkbox" id="chkNodePhiDensity" /> ノード密度×Φ（赤=低Φ集中・青=高Φ集中）</label>
+        <label><input type="checkbox" id="chkDeltaPhi" /> ΔΦ ヒートマップ (観測)</label>
+        <label><input type="checkbox" id="chkDeltaPhiNodes" /> ΔΦ ノード色分け (観測)</label>
+        <label><input type="checkbox" id="chkMoveArrows" /> 移動矢印 (前年→当年)</label>
+        <label style="color:#fbbf24"><input type="checkbox" id="chkPredDeltaPhi" /> 予測ΔΦ ヒートマップ</label>
+        <label style="color:#fbbf24"><input type="checkbox" id="chkPredDeltaPhiNodes" /> 予測ΔΦ ノード色分け</label>
+        <label style="color:#fbbf24"><input type="checkbox" id="chkPredMoveArrows" /> 予測移動矢印 (当年→翌年予測)</label>
       </div>
       <div class="field-adjustments">
         <div class="adj"><label for="rngHeatOp">ヒート透明度</label>
@@ -100,6 +107,8 @@
           <input type="range" id="rngArrowOp" min="0.35" max="1" step="0.05" value="0.9" /><span id="lblArrowOp"></span></div>
         <div class="adj"><label for="selNCont">等高線本数</label>
           <select id="selNCont"><option value="10">10</option><option value="14" selected>14</option><option value="18">18</option><option value="24">24</option></select></div>
+        <div class="adj"><label for="rngDeltaOp">ΔΦ 透明度</label>
+          <input type="range" id="rngDeltaOp" min="0.10" max="0.70" step="0.02" value="0.38" /><span id="lblDeltaOp"></span></div>
       </div>
       <div class="patent-legend" id="jointLegend">
         <span><span class="swatch" style="background:rgba(248,113,113,0.9)"></span>単独出願</span>
@@ -130,7 +139,7 @@
       </div>
       <aside class="detail-panel" id="detailPanel">
         <h2>ノード詳細</h2>
-        <div id="detailBody" class="detail-placeholder">プロット上の特許（四角）または企業（丸）をクリックすると、ここにメタデータを表示します。</div>
+        <div id="detailBody" class="detail-placeholder"></div>
       </aside>
     </div>
   </div>
@@ -157,6 +166,8 @@
     idleHint: '企業・特許をクリックで強調。',
     hintHtml: '',
     legendInnerHtml: '',
+    rightNodeLabel: '特許',
+    leftNodeLabel: '企業',
   }, WRAP.ui || {});
   (function applyUiFromPayload() {
     const yl = document.getElementById('yearSliderLabel');
@@ -178,7 +189,10 @@
   const highlightJoint = 'rgb(34, 197, 94)';
   const dimColor = 'rgba(100, 110, 130, 0.2)';
   let showHeatmap = true, showContour = true, showArrows = true;
-  let heatmapOpacity = 0.28, arrowOpacity = 0.9, nContourLevels = 14;
+  let showNodePhiDensity = false;
+  let showDeltaPhi = false, showDeltaPhiNodes = false, showMoveArrows = false;
+  let showPredDeltaPhi = false, showPredDeltaPhiNodes = false, showPredMoveArrows = false;
+  let heatmapOpacity = 0.28, arrowOpacity = 0.9, nContourLevels = 14, deltaPhiOpacity = 0.38;
   let jointPartnerHighlight = new Set(), selectedJointPatentId = '';
   function currentPayload() { return DATA[currentYear]; }
   function isJoint(p) { return p.joint === true; }
@@ -256,7 +270,7 @@
     const el = document.getElementById('detailBody');
     if (!el) return;
     el.className = 'detail-placeholder';
-    el.textContent = 'プロット上の特許（四角）または企業（丸）をクリックすると、ここにメタデータを表示します。';
+    el.textContent = 'プロット上の' + U.rightNodeLabel + '（四角）または' + U.leftNodeLabel + '（丸）をクリックすると、ここにメタデータを表示します。';
   }
   function esc(s) {
     return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
@@ -265,27 +279,42 @@
     const el = document.getElementById('detailBody');
     if (!el || !d) return;
     el.className = '';
-    const order = ['patent_number','patent_name','date','year','year_month','corporation','lead_ipc','ipc','fi','fterm','keyword','topic_id','lead_inventor','inventors','description'];
-    const titles = { patent_number: '特許番号', patent_name: '名称', date: '日付', year: '年', year_month: 'year_month',
-      corporation: '企業', lead_ipc: 'Lead_IPC', ipc: 'IPC', fi: 'FI', fterm: 'F-term', keyword: 'キーワード', topic_id: 'topic_id',
-      lead_inventor: '代表発明者', inventors: '発明者', description: '要約/説明' };
+    let order, titles;
+    if (U.domain === 'author_topic') {
+      order = ['topic','title','year','linked_authors','url','description'];
+      titles = { topic: 'トピック', title: 'タイトル', year: '年', linked_authors: '関連著者数', url: 'URL', description: '説明' };
+    } else if (U.domain === 'author_paper') {
+      order = ['paper_id','title','year','url','description'];
+      titles = { paper_id: '論文ID', title: 'タイトル', year: '年', url: 'URL', description: '要約' };
+    } else {
+      order = ['patent_number','patent_name','date','year','year_month','corporation','lead_ipc','ipc','fi','fterm','keyword','topic_id','lead_inventor','inventors','description'];
+      titles = { patent_number: '特許番号', patent_name: '名称', date: '日付', year: '年', year_month: 'year_month',
+        corporation: '企業', lead_ipc: 'Lead_IPC', ipc: 'IPC', fi: 'FI', fterm: 'F-term', keyword: 'キーワード', topic_id: 'topic_id',
+        lead_inventor: '代表発明者', inventors: '発明者', description: '要約/説明' };
+    }
     let html = '';
     order.forEach(k => {
       if (d[k] != null && String(d[k]).trim() !== '') {
-        html += '<dt>' + esc(titles[k] || k) + '</dt><dd' + (k === 'patent_number' ? ' class="mono"' : '') + '>'
-          + esc(d[k]) + '</dd>';
+        const isUrl = (k === 'url' && String(d[k]).startsWith('http'));
+        const val = isUrl
+          ? '<a href="' + esc(d[k]) + '" target="_blank" rel="noopener" style="color:#60a5fa;word-break:break-all">' + esc(d[k]) + '</a>'
+          : esc(d[k]);
+        html += '<dt>' + esc(titles[k] || k) + '</dt><dd>' + val + '</dd>';
       }
     });
-    el.innerHTML = '<span class="detail-badge">特許ノード</span><dl>' + html + '</dl>';
+    if (d.phi != null) html += '<dt>Φ（ポテンシャル）</dt><dd>' + esc(Number(d.phi).toFixed(4)) + '</dd>';
+    if (d.deltaPhi != null) html += '<dt>観測ΔΦ</dt><dd>' + esc(Number(d.deltaPhi).toFixed(4)) + '</dd>';
+    if (d.predDeltaPhi != null) html += '<dt>予測ΔΦ</dt><dd>' + esc(Number(d.predDeltaPhi).toFixed(4)) + '</dd>';
+    el.innerHTML = '<span class="detail-badge">' + esc(U.rightNodeLabel) + 'ノード</span><dl>' + html + '</dl>';
   }
   function renderCorpDetail(d) {
     const el = document.getElementById('detailBody');
     if (!el || !d) return;
     el.className = '';
-    el.innerHTML = '<span class="detail-badge corp">企業ノード</span><dl>'
-      + '<dt>企業名</dt><dd>' + esc(d.name||'') + '</dd>'
+    el.innerHTML = '<span class="detail-badge corp">' + esc(U.leftNodeLabel) + 'ノード</span><dl>'
+      + '<dt>' + esc(U.leftNodeLabel) + '名</dt><dd>' + esc(d.name||'') + '</dd>'
       + '<dt>表示年</dt><dd>' + esc(d.year||'') + '</dd>'
-      + '<dt>この年の特許（グラフ）</dt><dd>' + esc(d.patentsYear||'') + ' 件</dd>'
+      + '<dt>この年の' + esc(U.rightNodeLabel) + '（グラフ）</dt><dd>' + esc(d.patentsYear||'') + ' 件</dd>'
       + '<dt>全期間（CSV）</dt><dd>' + esc(d.patentsTotal||'') + ' 件</dd>'
       + '</dl>';
   }
@@ -388,31 +417,192 @@
         });
       });
     }
+    if (showNodePhiDensity && F.nodePhiDensity && F.nodePhiDensity.z) {
+      out.push({
+        type: 'heatmap',
+        x: F.nodePhiDensity.x,
+        y: F.nodePhiDensity.y,
+        z: F.nodePhiDensity.z,
+        zsmooth: 'best',
+        opacity: 0.55,
+        hoverinfo: 'z',
+        showscale: true,
+        connectgaps: false,
+        zmin: -1, zmid: 0, zmax: 1,
+        colorscale: [
+          [0, 'rgb(230,50,50)'],
+          [0.25, 'rgb(200,80,60)'],
+          [0.45, 'rgb(140,100,90)'],
+          [0.5, 'rgb(90,90,100)'],
+          [0.55, 'rgb(80,90,130)'],
+          [0.75, 'rgb(60,80,190)'],
+          [1, 'rgb(50,70,230)']
+        ],
+        colorbar: {
+          title: { text: 'ノードΦ（赤=注目集中・青=離散）', font: { color: '#f87171', size: 11 } },
+          len: 0.42, thickness: 10, x: 1.10,
+          tickfont: { color: '#e88' },
+          bgcolor: 'rgba(18,21,28,0.85)',
+          bordercolor: 'rgba(200,80,80,0.4)',
+        },
+        name: 'ノード密度×Φ'
+      });
+    }
+    if (showDeltaPhi && F.deltaPhiHeatmap && F.deltaPhiHeatmap.z) {
+      out.push({
+        type: 'heatmap',
+        x: F.deltaPhiHeatmap.x,
+        y: F.deltaPhiHeatmap.y,
+        z: F.deltaPhiHeatmap.z,
+        zsmooth: 'best',
+        opacity: deltaPhiOpacity,
+        hoverinfo: 'skip',
+        showscale: true,
+        zmin: -1, zmid: 0, zmax: 1,
+        colorscale: [
+          [0, 'rgb(220,60,60)'],
+          [0.35, 'rgb(180,50,50)'],
+          [0.5, 'rgba(50,52,62,0.15)'],
+          [0.65, 'rgb(50,90,200)'],
+          [1, 'rgb(60,110,230)']
+        ],
+        colorbar: {
+          title: { text: 'ΔΦ（赤=流入・青=流出）', font: { color: '#b8c4d8', size: 11 } },
+          len: 0.42, thickness: 10, x: 1.10,
+          tickfont: { color: '#8a96ac' },
+          bgcolor: 'rgba(18,21,28,0.85)',
+          bordercolor: 'rgba(100,115,150,0.4)',
+        },
+        name: 'ΔΦ'
+      });
+    }
+    if (showMoveArrows && F.movementArrows && F.movementArrows.xl && F.movementArrows.xl.length) {
+      out.push({
+        type: 'scatter', mode: 'lines',
+        x: F.movementArrows.xl, y: F.movementArrows.yl,
+        line: { color: 'rgba(250,204,21,0.55)', width: 1.2 },
+        hoverinfo: 'skip',
+        name: '移動 (前年→当年)',
+        showlegend: true
+      });
+    }
+    if (showPredDeltaPhi && F.predDeltaPhiHeatmap && F.predDeltaPhiHeatmap.z) {
+      out.push({
+        type: 'heatmap',
+        x: F.predDeltaPhiHeatmap.x,
+        y: F.predDeltaPhiHeatmap.y,
+        z: F.predDeltaPhiHeatmap.z,
+        zsmooth: 'best',
+        opacity: deltaPhiOpacity,
+        hoverinfo: 'skip',
+        showscale: true,
+        zmin: -1, zmid: 0, zmax: 1,
+        colorscale: [
+          [0, 'rgb(220,160,40)'],
+          [0.35, 'rgb(190,120,30)'],
+          [0.5, 'rgba(50,52,62,0.15)'],
+          [0.65, 'rgb(80,50,180)'],
+          [1, 'rgb(120,60,220)']
+        ],
+        colorbar: {
+          title: { text: '予測ΔΦ（橙=流入予測・紫=流出予測）', font: { color: '#fcd34d', size: 11 } },
+          len: 0.42, thickness: 10, x: 1.18,
+          tickfont: { color: '#b8a060' },
+          bgcolor: 'rgba(18,21,28,0.85)',
+          bordercolor: 'rgba(160,130,60,0.4)',
+        },
+        name: '予測ΔΦ'
+      });
+    }
+    if (showPredMoveArrows && F.predMovementArrows && F.predMovementArrows.xl && F.predMovementArrows.xl.length) {
+      out.push({
+        type: 'scatter', mode: 'lines',
+        x: F.predMovementArrows.xl, y: F.predMovementArrows.yl,
+        line: { color: 'rgba(168,85,247,0.6)', width: 1.3, dash: 'dot' },
+        hoverinfo: 'skip',
+        name: '予測移動 (当年→翌年)',
+        showlegend: true
+      });
+    }
     return out;
   }
   function fieldTraceCount(P) { return fieldLayerTraces(P).length; }
+  function deltaPhiColorscale(val) {
+    if (val == null) return 'rgba(128,128,128,0.45)';
+    const v = Math.max(-1, Math.min(1, val));
+    if (v < 0) {
+      const t = -v;
+      return 'rgba(' + Math.round(180 + 75*t) + ',' + Math.round(60*(1-t)+30) + ',' + Math.round(60*(1-t)+30) + ',0.92)';
+    }
+    const t = v;
+    return 'rgba(' + Math.round(50*(1-t)+20) + ',' + Math.round(80*(1-t)+40) + ',' + Math.round(180 + 55*t) + ',0.92)';
+  }
+  function getDeltaPhiScale(P, key) {
+    let mx = 0;
+    const k = key || 'deltaPhi';
+    P.patents.forEach(p => { if (p[k] != null) mx = Math.max(mx, Math.abs(p[k])); });
+    P.corporations.forEach(c => { if (c[k] != null) mx = Math.max(mx, Math.abs(c[k])); });
+    return mx > 1e-12 ? mx : 1;
+  }
+  function predDeltaPhiColorscale(val) {
+    if (val == null) return 'rgba(128,128,128,0.45)';
+    const v = Math.max(-1, Math.min(1, val));
+    if (v < 0) {
+      const t = -v;
+      return 'rgba(' + Math.round(200+55*t) + ',' + Math.round(140+60*t) + ',' + Math.round(30+10*t) + ',0.92)';
+    }
+    const t = v;
+    return 'rgba(' + Math.round(100+40*t) + ',' + Math.round(50+20*t) + ',' + Math.round(170+60*t) + ',0.92)';
+  }
   function buildTraces(P, patentColors, selectedCorpName, jointSet) {
     const pc = patentColors || baseColorsForPatents(P), sel = selectedCorpName || '', jset = jointSet || jointPartnerHighlight;
     const cm = corpMarkerArrays(P, sel, jset);
     const layers = fieldLayerTraces(P);
+    const patMarker = {
+      symbol: 'square',
+      size: P.patents.map(p => p.id === selectedJointPatentId ? 11 : 8),
+      line: { width: P.patents.map(p => p.id === selectedJointPatentId ? 2 : 0.35), color: P.patents.map(p => p.id === selectedJointPatentId ? '#fbbf24' : 'rgba(12,14,18,0.85)') },
+      color: pc,
+    };
+    const corpMarker = { symbol: 'circle', size: cm.size, color: cm.fill, line: { width: cm.lineW, color: cm.lineC } };
+    if (showPredDeltaPhiNodes) {
+      const sc = getDeltaPhiScale(P, 'predDeltaPhi');
+      patMarker.color = P.patents.map(p => predDeltaPhiColorscale(p.predDeltaPhi != null ? p.predDeltaPhi / sc : null));
+      corpMarker.color = P.corporations.map(c => predDeltaPhiColorscale(c.predDeltaPhi != null ? c.predDeltaPhi / sc : null));
+      corpMarker.size = P.corporations.map(() => 12);
+      corpMarker.line = { width: 0.5, color: 'rgba(12,14,18,0.85)' };
+    } else if (showDeltaPhiNodes) {
+      const sc = getDeltaPhiScale(P, 'deltaPhi');
+      patMarker.color = P.patents.map(p => deltaPhiColorscale(p.deltaPhi != null ? p.deltaPhi / sc : null));
+      corpMarker.color = P.corporations.map(c => deltaPhiColorscale(c.deltaPhi != null ? c.deltaPhi / sc : null));
+      corpMarker.size = P.corporations.map(() => 12);
+      corpMarker.line = { width: 0.5, color: 'rgba(12,14,18,0.85)' };
+    }
     return layers.concat([
-      { type: 'scattergl', mode: 'markers', x: P.patents.map(p => p.x), y: P.patents.map(p => p.y), text: P.patents.map(p => p.hover),
-        hoverinfo: 'text', customdata: P.patents.map(p => JSON.stringify({
-          type: 'patent',
-          id: p.id,
-          joint: !!p.joint,
-          coApplicants: p.coApplicants || [],
-          detail: p.detail || {},
-        })),
-        marker: { symbol: 'square', size: P.patents.map(p => p.id === selectedJointPatentId ? 11 : 8),
-          line: { width: P.patents.map(p => p.id === selectedJointPatentId ? 2 : 0.35), color: P.patents.map(p => p.id === selectedJointPatentId ? '#fbbf24' : 'rgba(12,14,18,0.85)') }, color: pc }, name: U.rightTraceName },
-      { type: 'scattergl', mode: 'markers', x: P.corporations.map(c => c.x), y: P.corporations.map(c => c.y), text: P.corporations.map(c => c.hover),
+      { type: 'scattergl', mode: 'markers', x: P.patents.map(p => p.x), y: P.patents.map(p => p.y), text: P.patents.map(p => {
+          const dp = p.deltaPhi != null ? '<br/>観測ΔΦ=' + p.deltaPhi.toFixed(4) : '';
+          const pp = p.predDeltaPhi != null ? '<br/>予測ΔΦ(→' + (p.predYear||'?') + ')=' + p.predDeltaPhi.toFixed(4) : '';
+          return (p.hover || '') + dp + pp;
+        }),
+        hoverinfo: 'text', customdata: P.patents.map(p => {
+          const dt = Object.assign({}, p.detail || {});
+          if (p.phi != null) dt.phi = p.phi;
+          if (p.deltaPhi != null) dt.deltaPhi = p.deltaPhi;
+          if (p.predDeltaPhi != null) dt.predDeltaPhi = p.predDeltaPhi;
+          return JSON.stringify({ type: 'patent', id: p.id, joint: !!p.joint, coApplicants: p.coApplicants || [], detail: dt });
+        }),
+        marker: patMarker, name: U.rightTraceName },
+      { type: 'scattergl', mode: 'markers', x: P.corporations.map(c => c.x), y: P.corporations.map(c => c.y), text: P.corporations.map(c => {
+          const dp = c.deltaPhi != null ? '<br/>観測ΔΦ=' + c.deltaPhi.toFixed(4) : '';
+          const pp = c.predDeltaPhi != null ? '<br/>予測ΔΦ(→' + (c.predYear||'?') + ')=' + c.predDeltaPhi.toFixed(4) : '';
+          return (c.hover || '') + dp + pp;
+        }),
         hoverinfo: 'text', customdata: P.corporations.map(c => JSON.stringify({
           type: 'corp',
           name: c.name,
           detail: c.detail || { name: c.name, patentsYear: String(c.patentsYear), patentsTotal: String(c.patentsTotal), year: String(currentYear) },
         })),
-        marker: { symbol: 'circle', size: cm.size, color: cm.fill, line: { width: cm.lineW, color: cm.lineC } }, name: U.leftTraceName }
+        marker: corpMarker, name: U.leftTraceName }
     ]);
   }
   const layout = {
@@ -437,11 +627,11 @@
     legend: { orientation: 'h', y: 1.06, font: { color: '#b8c4d8' }, bgcolor: 'rgba(18, 21, 28, 0.72)' },
     margin: { l: 56, r: 24, t: 52, b: 48 },
     hoverlabel: {
-      bgcolor: 'rgba(15,23,42,0.98)',
-      bordercolor: '#475569',
+      bgcolor: 'rgba(10,16,30,0.97)',
+      bordercolor: 'rgba(96,165,250,0.45)',
       align: 'left',
       namelength: -1,
-      font: { color: '#f1f5f9', size: 12, family: 'Segoe UI, system-ui, sans-serif' },
+      font: { color: '#f1f5f9', size: 13, family: '"Segoe UI", system-ui, sans-serif' },
     },
   };
   const plotOpts = { responsive: true, scrollZoom: true };
@@ -450,10 +640,14 @@
   const yearSlider = document.getElementById('yearSlider'), yearCurrent = document.getElementById('yearCurrent');
   const yearMinLabel = document.getElementById('yearMinLabel'), yearMaxLabel = document.getElementById('yearMaxLabel');
   const chkHeatmap = document.getElementById('chkHeatmap'), chkContour = document.getElementById('chkContour'), chkArrows = document.getElementById('chkArrows');
-  const rngHeatOp = document.getElementById('rngHeatOp'), rngArrowOp = document.getElementById('rngArrowOp');
-  const lblHeatOp = document.getElementById('lblHeatOp'), lblArrowOp = document.getElementById('lblArrowOp'), selNCont = document.getElementById('selNCont');
+  const chkNodePhiDensity = document.getElementById('chkNodePhiDensity');
+  const chkDeltaPhi = document.getElementById('chkDeltaPhi'), chkDeltaPhiNodes = document.getElementById('chkDeltaPhiNodes'), chkMoveArrows = document.getElementById('chkMoveArrows');
+  const chkPredDeltaPhi = document.getElementById('chkPredDeltaPhi'), chkPredDeltaPhiNodes = document.getElementById('chkPredDeltaPhiNodes'), chkPredMoveArrows = document.getElementById('chkPredMoveArrows');
+  const rngHeatOp = document.getElementById('rngHeatOp'), rngArrowOp = document.getElementById('rngArrowOp'), rngDeltaOp = document.getElementById('rngDeltaOp');
+  const lblHeatOp = document.getElementById('lblHeatOp'), lblArrowOp = document.getElementById('lblArrowOp'), lblDeltaOp = document.getElementById('lblDeltaOp'), selNCont = document.getElementById('selNCont');
   if (rngHeatOp) heatmapOpacity = parseFloat(rngHeatOp.value) || heatmapOpacity;
   if (rngArrowOp) arrowOpacity = parseFloat(rngArrowOp.value) || arrowOpacity;
+  if (rngDeltaOp) deltaPhiOpacity = parseFloat(rngDeltaOp.value) || deltaPhiOpacity;
   if (selNCont) nContourLevels = parseInt(selNCont.value, 10) || nContourLevels;
   const yearKeys = Object.keys(DATA).sort((a,b) => Number(a)-Number(b));
   const nYears = yearKeys.length;
@@ -511,7 +705,7 @@
     refreshCategoryLegend(P);
     Plotly.react('plot', buildTraces(P, baseColorsForPatents(P), '', jointPartnerHighlight), layout, plotOpts); rebuildCorpSelect(); }
   function reactAll() { const P = currentPayload(), k = sel.value || ''; Plotly.react('plot', buildTraces(P, patentColorsForCorp(P, k), k, jointPartnerHighlight), layout, plotOpts); }
-  function syncAdjLabels() { if (lblHeatOp) lblHeatOp.textContent = '('+heatmapOpacity.toFixed(2)+')'; if (lblArrowOp) lblArrowOp.textContent = '('+arrowOpacity.toFixed(2)+')'; }
+  function syncAdjLabels() { if (lblHeatOp) lblHeatOp.textContent = '('+heatmapOpacity.toFixed(2)+')'; if (lblArrowOp) lblArrowOp.textContent = '('+arrowOpacity.toFixed(2)+')'; if (lblDeltaOp) lblDeltaOp.textContent = '('+deltaPhiOpacity.toFixed(2)+')'; }
   const selColorBy = document.getElementById('selColorBy');
   if (selColorBy) {
     selColorBy.addEventListener('change', () => {
@@ -527,8 +721,16 @@
   chkHeatmap.addEventListener('change', () => { showHeatmap = chkHeatmap.checked; reactAll(); });
   chkContour.addEventListener('change', () => { showContour = chkContour.checked; reactAll(); });
   chkArrows.addEventListener('change', () => { showArrows = chkArrows.checked; reactAll(); });
+  if (chkNodePhiDensity) chkNodePhiDensity.addEventListener('change', () => { showNodePhiDensity = chkNodePhiDensity.checked; reactAll(); });
+  if (chkDeltaPhi) chkDeltaPhi.addEventListener('change', () => { showDeltaPhi = chkDeltaPhi.checked; reactAll(); });
+  if (chkDeltaPhiNodes) chkDeltaPhiNodes.addEventListener('change', () => { showDeltaPhiNodes = chkDeltaPhiNodes.checked; reactAll(); });
+  if (chkMoveArrows) chkMoveArrows.addEventListener('change', () => { showMoveArrows = chkMoveArrows.checked; reactAll(); });
+  if (chkPredDeltaPhi) chkPredDeltaPhi.addEventListener('change', () => { showPredDeltaPhi = chkPredDeltaPhi.checked; reactAll(); });
+  if (chkPredDeltaPhiNodes) chkPredDeltaPhiNodes.addEventListener('change', () => { showPredDeltaPhiNodes = chkPredDeltaPhiNodes.checked; reactAll(); });
+  if (chkPredMoveArrows) chkPredMoveArrows.addEventListener('change', () => { showPredMoveArrows = chkPredMoveArrows.checked; reactAll(); });
   rngHeatOp.addEventListener('input', () => { heatmapOpacity = parseFloat(rngHeatOp.value)||0.28; syncAdjLabels(); reactAll(); });
   rngArrowOp.addEventListener('input', () => { arrowOpacity = parseFloat(rngArrowOp.value)||0.9; syncAdjLabels(); reactAll(); });
+  if (rngDeltaOp) rngDeltaOp.addEventListener('input', () => { deltaPhiOpacity = parseFloat(rngDeltaOp.value)||0.38; syncAdjLabels(); reactAll(); });
   selNCont.addEventListener('change', () => { nContourLevels = parseInt(selNCont.value,10)||14; reactAll(); });
   function applyHighlight(corpName) { jointPartnerHighlight = new Set(); selectedJointPatentId = ''; const P = currentPayload();
     Plotly.react('plot', buildTraces(P, patentColorsForCorp(P, corpName), corpName||'', jointPartnerHighlight), layout, plotOpts); sel.value = corpName||''; refreshStatusBar(); }

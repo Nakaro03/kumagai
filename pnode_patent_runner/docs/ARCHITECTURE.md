@@ -4,6 +4,7 @@
 
 | 関連ドキュメント | 内容 |
 |------------------|------|
+| [PNODE_PAPER_FRAMING.md](PNODE_PAPER_FRAMING.md) | 論文用の主張固定・記号表・プロトコル段落・消融 A1–A5 と再現コマンド |
 | [README_COPE.md](../README_COPE.md) | 損失 6 成分、データパイプライン、CLI |
 | [ACCURACY_POTENTIAL_VIZ_DESIGN.md](ACCURACY_POTENTIAL_VIZ_DESIGN.md) | 精度と可視化の役割分担の論点 |
 | [P_NODE_TIME_DENSITY_HOTSPOT.md](P_NODE_TIME_DENSITY_HOTSPOT.md) | 時間つき密度 \(\Phi_t\) の設計案・将来の ODE 組み込み |

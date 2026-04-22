@@ -32,7 +32,7 @@ flowchart LR
 | **問題** | 年次二部グラフ上の **future-link 予測**（左＝企業または著者、右＝特許・論文・トピック等）。 |
 | **提案** | **同一 `PotentialNet` の $\Phi$** が (1) 勾配流 ODE の速度場 $-\nabla\Phi$ と (2) デコーダの $w_{\mathrm{pot}}(\Phi_i+\Phi_j)$ の両方に現れる（`UnifiedVGAE`）。 |
 | **対照** | `BenchmarkTemporalVGAE` の **P-NODE** は同様の勾配流だが **デコーダに $\Phi$ を入れない**。Static / RNN / Neural ODE との違いは [README_COPE.md のベースライン表](README_COPE.md) 参照。 |
-| **主な評価指標** | 検証は **`evaluate_val_future_link_metrics`** に基づく **ROC-AUC** と **Average Precision (AP)**。対象は時系列の **最終2年** $y_{T-1}\to y_T$ の future-link（実装: `unified_training.py`）。 |
+| **主な評価指標** | 検証は **`evaluate_val_future_link_metrics`** に基づく **ROC-AUC**、**AP**、**ECE**（リンク logit の sigmoid 上の等幅ビン期待較正誤差; `FUTURE_LINK_ECE_N_BINS`）。対象は時系列の **最終2年** $y_{T-1}\to y_T$ の future-link（実装: `unified_training.py`）。 |
 | **データドメイン** | `--data-domain patent` / `arxiv` / `author_topic` のいずれを主結果にするか。 |
 
 ---
@@ -67,7 +67,7 @@ flowchart LR
 | 正例 | $y_T$ の二部エッジから **最大 1500** 本をサブサンプル（`max_pos`）。 |
 | 負例 | 上記正例に現れる active 左ノード・右ノードからランダムにペアを生成。**全候補ペア上の指標ではない**ことを明記。 |
 | RNG | 負例サンプルは **固定シード**の NumPy RNG（実装参照）。再現手順にシードを書く。 |
-| 指標 | **ROC-AUC** に加え **AP** を報告するとよい（不均衡リンクで PR の要約として説明しやすい）。 |
+| 指標 | **ROC-AUC** に加え **AP** と **ECE**（`evaluate_val_future_link_metrics` の `ece`；JSON では `final_val_ece` 等）を報告可能。不均衡リンクでは AP が PR の要約として説明しやすい。 |
 | 「accuracy」 | リンク予測では **誤解を避け、指標名（AUC/AP）を明示**する。 |
 
 **リークではないことの説明**: $\Phi$ はラベル直入力ではなく、`PotentialNet(z)$ から計算される学習可能な場であること、評価時は `predict_future` 後の $z$ でデコードすること、を必要なら一文で書く。
@@ -81,13 +81,15 @@ flowchart LR
 | 学習に使う年 | `y < Y` のみ。`Y` 年のエッジは **future_link 損失に出てこない**。 |
 | `hist_edges` | バンドル全体ではなく、**学習期間のグラフだけ**から和集合を再計算（テスト年のペアを負例制約に先取りしない）。 |
 | テスト遷移 | 時系列キー上で `Y` の直前の年 `year_prev` から `Y` への future-link AUC/AP。 |
-| 報告 | `final_val_auc` / `final_val_ap` は **ホールドアウト**の指標。学習区間の最後2年は `train_split_val_*` として別記。 |
+| 報告 | `final_val_auc` / `final_val_ap` / `final_val_ece` は **ホールドアウト**の指標。学習区間の最後2年は `train_split_val_*` として別記。 |
 | 前提 | `--year-range`（または同等の年指定）に **Y が含まれる**こと。 |
 | **ドメイン** | **特許・著者–論文・著者–トピックで同一**。`--data-domain` を変えても `split_bundle_holdout_test_year` の挙動は同じ（年次二部グラフのキーが年であることのみ必要）。 |
 
 Optuna の目的関数は **学習グラフのみ**で計算される `best_val_auc`（各 trial でテスト年は学習に未使用）。
 
 **推奨**: 主表をドメイン横断で比較する場合は、**3ドメインすべて**で同様に `--holdout-test-year` を指定し、報告は `final_val_*`（ホールドアウト）を揃える。
+
+**本文主表の固定（査読用）**: **本文の主表はホールドアウト（`--holdout-test-year`）の `final_val_auc` / `final_val_ap` / `final_val_ece` のみ**とする。**Transductive（ホールドアウトなし）の同名列は Appendix（補足実験・感度）に回し、本文の主表・主張と混在させない**（詳細は [docs/TREND_PREDICTION_EXPERIMENT.md](docs/TREND_PREDICTION_EXPERIMENT.md) の「データ分割」）。
 
 ### 論文 Experimental setup にそのまま写せる対応表（評価・ホールドアウト・HPO）
 
@@ -99,10 +101,11 @@ Optuna の目的関数は **学習グラフのみ**で計算される `best_val_
 | 検証の時点 | 系列を昇順に並べた **最後の2年**のみ | 中間年の遷移は主指標に含めない |
 | 正例 | $y_T$ のエッジから **最大 1500** 本 | `max_pos` |
 | 負例 | 正例に現れる active 左右ノードから **ランダム**（全ペアではない） | 再現のため **RNG シード**を論文に記載 |
-| 指標 | **ROC-AUC** と **AP**（リンク予測では「accuracy」と書かず指標名を明示） | 不均衡向きに AP を併記 |
+| 指標 | **ROC-AUC**・**AP**・**ECE**（リンク予測では「accuracy」と書かず指標名を明示） | 不均衡向きに AP を併記；校正は ECE |
 | ホールドアウトを使う場合 | `--holdout-test-year Y` | 学習は $y<Y$ のみ；`hist_edges` は学習期間のみで再計算 |
-| 主表に載せる数値（ホールドアウト時） | JSON の **`final_val_auc` / `final_val_ap`** | テスト遷移 $(Y\text{の直前}\to Y)$ |
-| 学習区内の最後2年だけの指標 | **`train_split_val_auc` / `train_split_val_ap`**（名前は実装の JSON キーに合わせる） | ホールドアウト有無で意味が変わるため **どちらを主表にしたか**を本文で固定 |
+| 多ホライズン（任意） | `--eval-horizon-gaps 1,2,3` | JSON の **`final_metrics_by_horizon_gap`**（`"k"`: auc/ap/ece）— `sorted(years)` 上のインデックス差 $k$ |
+| 主表に載せる数値（ホールドアウト時） | JSON の **`final_val_auc` / `final_val_ap` / `final_val_ece`** | テスト遷移 $(Y\text{の直前}\to Y)$ |
+| 学習区内の最後2年だけの指標 | **`train_split_val_auc` / `train_split_val_ap` / `train_split_val_ece`**（名前は実装の JSON キーに合わせる） | ホールドアウト有無で意味が変わるため **どちらを主表にしたか**を本文で固定 |
 | Optuna の目的 | テスト年 $Y$ は **trial の目的関数に入れない**（`best_val_auc` は学習グラフ上） | `--holdout-test-year` 使用時と整合 |
 | HPO の書き方（どちらかを明示） | **A**: `--optuna-best-json` は **CoPE のみ**、他は CLI 固定／**B**: 各 `--method` で同じ `--n-trials` の Optuna → `--optuna-best-json-map` | B を主表に推奨する場合はセクション5の対称 HPO を参照 |
 
@@ -115,6 +118,7 @@ Optuna の目的関数は **学習グラフのみ**で計算される `best_val_
 **スクリプト**: [`run_benchmark_comparison.py`](run_benchmark_comparison.py)
 
 - 同一データ・同一損失枠で **Static / RNN / Neural ODE / P-NODE / CoPE** を学習し、JSON に結果を保存可能。
+- **複数シードの集約（平均・SE・ペア Wilcoxon）**: [`aggregate_benchmark_seeds.py`](aggregate_benchmark_seeds.py) と [docs/STATS_PREREGISTRATION.md](docs/STATS_PREREGISTRATION.md)。**多ホライズン（長期）の事前登録と `--horizon-gap` 集約**: [docs/LONG_HORIZON_PREREGISTRATION.md](docs/LONG_HORIZON_PREREGISTRATION.md)。**コミュニティ実装ベースラインの載せ方**: [docs/EXTERNAL_BASELINE_PLAN.md](docs/EXTERNAL_BASELINE_PLAN.md)。
 - **重要**: `--cope-link-score`（`distance` または `cosine`）は **学習・チェックポイント・可視化**と一致させる（[README_COPE.md](README_COPE.md) の注意どおり）。
 - **時間依存ポテンシャル**: `--time-dependent-potential` を付けると、**CoPE** は `UnifiedVGAETD`（Φ(z, year)）、**P-NODE** は時間に依存する勾配流 ODE（`GradientNeuralODEPredictorTime`）で学習する。**Static / RNN+VGAE / Neural ODE** は従来どおり潜在ダイナミクスに **スカラーポテンシャル Φ(z) は用いない**ため、時間因子の主効果は **ポテンシャル勾配を含む手法（P-NODE / CoPE）** に対するアブレーションとして解釈するのが素直である。主表で「時間あり／なし」を並べる場合、Static/RNN/NeuralODE の数値が両条件で同一になるのは仕様上想定内であり、**1 回の学習結果を両パネルに掲載する**か、本文で **Φ の時間依存は P-NODE と CoPE にのみ適用**と明記する。JSON には `time_dependent_potential` と学習グラフに基づく `phi_year_min` / `phi_year_max` が入る。因子実験の一括実行例は [`scripts/run_factorial_benchmark.sh`](scripts/run_factorial_benchmark.sh)。
 
@@ -149,7 +153,7 @@ python -m pnode_patent_runner.run_benchmark_comparison \
   --cope-link-score distance
 ```
 
-著者–論文（`--data-domain arxiv`）と著者–トピック（`--data-domain author_topic`）も **特許と同じ CLI** で評価する。**ホールドアウトも同じ** — `--holdout-test-year Y` は `patent` / `arxiv` / `author_topic` のいずれでも有効（実装はドメイン非依存）。指標は `final_val_auc` / `final_val_ap`（ホールドアウト時はテスト遷移の AUC/AP）、定義は future-link の ROC-AUC / AP で共通。
+著者–論文（`--data-domain arxiv`）と著者–トピック（`--data-domain author_topic`）も **特許と同じ CLI** で評価する。**ホールドアウトも同じ** — `--holdout-test-year Y` は `patent` / `arxiv` / `author_topic` のいずれでも有効（実装はドメイン非依存）。指標は `final_val_auc` / `final_val_ap` / `final_val_ece`（ホールドアウト時はテスト遷移）、定義は future-link の ROC-AUC / AP / ECE で共通。
 
 **著者–論文（ArXiv 風 CSV）** — 想定列: `description_embedding`, `authors`, `year`, `url` 等。`--data` 省略時はリポジトリ既定パスを探索。学習・可視化と **年の切り方を揃える**（`--arxiv-year-min` / `--arxiv-year-max` と `--year-range`）。
 
@@ -181,6 +185,9 @@ python -m pnode_patent_runner.run_benchmark_comparison \
   --cope-link-score cosine
 ```
 
+査読用の **主張・記号・消融 A1–A5・否定結果スケジュール**の一枚物: [docs/PNODE_PAPER_FRAMING.md](docs/PNODE_PAPER_FRAMING.md)。  
+**技術トレンド予測の性能比較**（目的・分割・ハイパラ・評価・可視化・再現性のテンプレ）: [docs/TREND_PREDICTION_EXPERIMENT.md](docs/TREND_PREDICTION_EXPERIMENT.md)。
+
 著者系で **ホールドアウト**する例（最終年 `2024` をテストに回す）:
 
 ```bash
@@ -195,11 +202,11 @@ python -m pnode_patent_runner.run_benchmark_comparison \
 
 （`author_topic` でも同様に `--holdout-test-year` を付けられる。）
 
-**主表の書き方（例）**: 行＝ドメイン（企業–特許 / 著者–論文 / 著者–トピック）、列＝手法 × AUC（± 標準偏差）× AP。データが揃わない場合は脚注で CSV・年範囲を記載。
+**主表の書き方（例）**: 行＝ドメイン（企業–特許 / 著者–論文 / 著者–トピック）、列＝手法 × AUC（± 標準偏差）× AP × ECE。データが揃わない場合は脚注で CSV・年範囲を記載。
 
 出力の既定: `pnode_patent_runner/outputs/cope_benchmark/benchmark_<data_domain>_seed<seed>.json`（`data_domain` は `patent` / `arxiv` / `author_topic`）。
 
-**論文に書くこと**: CSV パス、`--year-range` / `--arxiv-year-*` / `--min-patents`、`--epochs`、`--seed`、`--cope-link-score`、デバイス（CPU/GPU）。
+**論文に書くこと**: CSV パス、`--year-range` / `--arxiv-year-*` / `--min-patents`、`--epochs`、`--seed`、`--cope-link-score`、ECE のビン数（JSON の `future_link_ece_n_bins`）、デバイス（CPU/GPU）。
 
 ---
 
@@ -207,6 +214,7 @@ python -m pnode_patent_runner.run_benchmark_comparison \
 
 | 目的 | スクリプト・内容 |
 |------|------------------|
+| **A1–A5**（$w_{\mathrm{pot}}$・$L_{\mathrm{pot}}$・$L_{\mathrm{traj}}$・時間静的対照・負例数）の実装対応と再現コマンド | [docs/PNODE_PAPER_FRAMING.md](docs/PNODE_PAPER_FRAMING.md) セクション 5–6 |
 | CoPE の **補助損失**（潜在予測・未来リンク・$L_{\mathrm{pot}}$・軌道）を切った場合 | [`run_cope_effectiveness.py`](run_cope_effectiveness.py) — `mode=both` で **cope** と **ablation（補助重み0）** を比較（特許パイプラインのみ）。 |
 | **P-NODE vs CoPE**（デコーダに $\Phi$ なし / あり） | `run_benchmark_comparison` の `pnode` と `cope` の列の差として主表に含める。 |
 
@@ -271,7 +279,7 @@ chmod +x pnode_patent_runner/scripts/run_symmetric_hpo_benchmark.example.sh
 ## 6. 図表の推奨順序
 
 1. **アーキテクチャ図**: Encoder → $\Phi$ / $-\nabla\Phi$ ODE → デコーダ（幾何項 + $\Phi$ 項）。P-NODE との差は **デコーダに $\Phi$ を足すか否か**。
-2. **主結果表**: ドメイン × 手法 × AUC（± 標準偏差が望ましい）× AP。
+2. **主結果表**: ドメイン × 手法 × AUC（± 標準偏差が望ましい）× AP × ECE。
 3. **消融表 / 補足**: `run_cope_effectiveness` または $w_{\mathrm{pot}}=0$ の議論。
 4. **可視化**（任意・**解釈用**）: $\Phi$ ヒートマップ・勾配場。企業–特許向け CLI は [`run_interactive_landscape_cope_vector_field.py`](run_interactive_landscape_cope_vector_field.py)。**既定テンプレート**は [`interactive_vector_field_alt_dark.html`](interactive_vector_field_alt_dark.html)（ダーク左パネル・Viridis 系の **map_cope_alt_dark スタイル**）。既定出力は `pnode_patent_runner/outputs/cope_landscape/map_cope_alt_dark.html`。
 

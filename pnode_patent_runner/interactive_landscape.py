@@ -374,12 +374,48 @@ def _topic_hover_row(
     row: pd.Series, topic_column: str, summary_max: int
 ) -> str:
     t = row.get(topic_column, "")
-    parts = [f"<b>{html.escape(str(t))}</b>"]
+    parts: List[str] = []
+
+    parts.append(
+        f'<span style="color:#f8fafc;font-size:14px;font-weight:700;letter-spacing:0.02em">'
+        f'{html.escape(str(t))}</span>'
+    )
+
     if "title" in row.index and pd.notna(row["title"]) and str(row["title"]).strip():
-        parts.append(html.escape(_clip(str(row["title"]), 120)))
+        parts.append(
+            f'<span style="color:#e2e8f0;font-size:12px;line-height:1.4;display:block;max-width:400px">'
+            f'{html.escape(_clip(str(row["title"]), 160))}</span>'
+        )
+
+    meta: List[str] = []
     if "year" in row.index and pd.notna(row["year"]):
-        parts.append(f"year: {html.escape(str(row['year']))}")
-    return "<br/>".join(parts) if parts else html.escape(str(t))
+        meta.append(
+            f'<b style="color:#94a3b8">year</b> {html.escape(str(row["year"]))}'
+        )
+    if "url" in row.index and pd.notna(row["url"]) and str(row["url"]).strip():
+        meta.append(
+            f'<b style="color:#94a3b8">url</b> {html.escape(_clip(str(row["url"]), 80))}'
+        )
+    if meta:
+        parts.append(
+            '<div style="margin-top:5px;color:#cbd5e1;font-size:11px;line-height:1.4">'
+            + "<br/>".join(meta)
+            + "</div>"
+        )
+
+    if "description" in row.index and pd.notna(row["description"]) and str(row["description"]).strip():
+        parts.append(
+            f'<div style="margin-top:6px;color:#a8b4c8;font-size:10.5px;line-height:1.4;'
+            f'border-top:1px solid rgba(148,163,184,0.3);padding-top:6px;max-width:420px">'
+            f'{html.escape(_clip(str(row["description"]), summary_max))}</div>'
+        )
+
+    inner = "<br/>".join(parts) if parts else html.escape(str(t))
+    return (
+        '<div style="min-width:220px;max-width:440px;padding:2px 0;font-family:system-ui,sans-serif">'
+        + inner
+        + "</div>"
+    )
 
 
 def build_interactive_payload_author_topic(
@@ -436,6 +472,20 @@ def build_interactive_payload_author_topic(
         if row is None:
             row = pd.Series({topic_column: tid})
         z = z_np[t_idx]
+
+        detail: Dict[str, str] = {"topic": sk}
+        for col in ("title", "description", "url", "year"):
+            if col in row.index and pd.notna(row[col]) and str(row[col]).strip():
+                val = str(row[col]).strip()
+                if col == "description":
+                    val = _clip(val, summary_max)
+                detail[col] = val
+
+        n_authors_linked = sum(
+            1 for a_idx, t_idx2 in pairs if t_idx2 == t_idx
+        )
+        detail["linked_authors"] = str(n_authors_linked)
+
         topic_entries.append(
             {
                 "id": sk,
@@ -444,19 +494,21 @@ def build_interactive_payload_author_topic(
                 "hover": _topic_hover_row(row, topic_column, summary_max),
                 "joint": False,
                 "coApplicants": [],
+                "detail": detail,
             }
         )
+
+    author_paper_counts: Dict[str, int] = {}
+    for _, r in df.iterrows():
+        for a in (r.get("authors_list") or []):
+            author_paper_counts[a] = author_paper_counts.get(a, 0) + 1
 
     author_entries: List[Dict[str, Any]] = []
     for a_idx in active_author_idx:
         aname = authors[a_idx]
         z = z_np[a_idx]
         n_year = len(author_to_topic_ids.get(aname, []))
-        n_total = sum(
-            1
-            for _, r in df.iterrows()
-            if aname in (r.get("authors_list") or [])
-        )
+        n_total = author_paper_counts.get(aname, 0)
         author_entries.append(
             {
                 "name": aname,

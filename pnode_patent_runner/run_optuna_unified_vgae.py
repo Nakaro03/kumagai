@@ -277,6 +277,38 @@ def main() -> None:
         help="RNN ベースラインの履歴長（--method rnn 時、探索では 2〜6 も試す）",
     )
     p.add_argument(
+        "--tune-latent-dim",
+        action="store_true",
+        help="各 trial で latent_dim を {2,4,8,16} から探索（指定しない場合は --latent-dim 固定）",
+    )
+    p.add_argument(
+        "--pnode-history-len",
+        type=int,
+        default=1,
+        metavar="K",
+        help="--method pnode / pnode_energy 時: BenchmarkTemporalVGAE の履歴長（ベンチと同一意味）",
+    )
+    p.add_argument(
+        "--pnode-ode-method",
+        type=str,
+        default="dopri5",
+        choices=("dopri5", "rk4", "euler"),
+        help="P-NODE 勾配流の積分法（run_benchmark_comparison と揃える）",
+    )
+    p.add_argument(
+        "--pnode-ode-n-steps",
+        type=int,
+        default=4,
+        help="rk4/euler 時の [0,1] 分割数",
+    )
+    p.add_argument(
+        "--loss-aux-warmup-epochs",
+        type=int,
+        default=0,
+        metavar="N",
+        help="λ_pot・λ_traj の線形ウォームアップ（unified_training と同一。0 で無効）",
+    )
+    p.add_argument(
         "--output-json",
         type=str,
         default="",
@@ -320,9 +352,6 @@ def main() -> None:
         ),
     )
     args = p.parse_args()
-
-    if args.latent_dim != 2:
-        raise SystemExit("現状は latent_dim=2 のみ想定です。")
 
     from pnode_patent_runner.unified_training import (
         README_DEFAULT_NUM_NEG_FUTURE,
@@ -410,13 +439,20 @@ def main() -> None:
         if args.method == "rnn":
             rnn_len = int(trial.suggest_int("rnn_history_len", 2, 6))
 
+        latent_dim = int(args.latent_dim)
+        if args.tune_latent_dim:
+            latent_dim = int(trial.suggest_categorical("latent_dim", [2, 4, 8, 16]))
+
         mb = ModelBuildKw(
             hidden_dim=int(h["hidden_dim"]),
-            latent_dim=args.latent_dim,
+            latent_dim=latent_dim,
             link_score_mode=args.cope_link_score,
             cosine_logit_scale=float(h.get("cosine_logit_scale", 5.0)),
             w_pot_init=float(h["w_pot_init"]),
             rnn_history_len=rnn_len,
+            pnode_history_len=int(args.pnode_history_len),
+            pnode_ode_method=str(args.pnode_ode_method),
+            pnode_ode_n_steps=int(args.pnode_ode_n_steps),
             density_calibrated_potential=bool(args.cope_density_calibrated),
             density_log_weight=float(args.cope_density_log_weight),
             density_ema_momentum=float(args.cope_density_ema_momentum),
@@ -438,6 +474,7 @@ def main() -> None:
             trajectory_weight=float(h["trajectory_weight"]),
             num_neg_recon=neg_r,
             num_neg_future=neg_f,
+            loss_aux_warmup_epochs=int(args.loss_aux_warmup_epochs),
         )
         if isinstance(model, UnifiedVGAETD):
             _, _, best_auc, _hist = train_model_td(
@@ -492,6 +529,12 @@ def main() -> None:
         "space": args.space,
         "cope_link_score": args.cope_link_score,
         "seed": args.seed,
+        "latent_dim_cli": int(args.latent_dim),
+        "tune_latent_dim": bool(args.tune_latent_dim),
+        "pnode_history_len": int(args.pnode_history_len),
+        "pnode_ode_method": str(args.pnode_ode_method),
+        "pnode_ode_n_steps": int(args.pnode_ode_n_steps),
+        "loss_aux_warmup_epochs": int(args.loss_aux_warmup_epochs),
         "time_dependent_potential": bool(args.time_dependent_potential),
         "phi_year_min": _y_min_tr,
         "phi_year_max": _y_max_tr,

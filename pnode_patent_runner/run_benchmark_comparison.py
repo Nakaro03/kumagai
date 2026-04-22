@@ -4,11 +4,12 @@ README_COPE.md のデータパイプライン・損失枠に沿い、ベース�
 
 - データ: `load_cope_graph_bundle`（特許）/ `load_author_paper_graph_bundle`（著者–論文）/ `load_author_topic_graph_bundle`（著者–トピック）
 - 学習: `unified_training.train_model_improved`（README 既定の β, pos_weight, λ 等）
-- 評価: `evaluate_val_future_link_metrics`（最終 2 年の future-link ROC-AUC および AP）
+- 評価: `evaluate_val_future_link_metrics`（最終 2 年の future-link ROC-AUC・AP・ECE）。任意: `--eval-horizon-gaps 1,2,3` で時系列キー列上の **k ステップ先**の AUC/AP/ECE に加え、同一ペアで **潜在 MSE / MAE / トレンド方向一致率**（`evaluate_latent_rollout_metrics_for_horizon_gaps`）も JSON に記録
 - 任意: `--holdout-test-year Y` で **Y 年のエッジを学習に含めず**、`(year_prev→Y)` を最終テストとして報告（学習は `y<Y` のみ、`hist_edges` もその期間で再構成）
 
 手法:
   Static, RNN+VGAE, NeuralODE, P-NODE（幾何デコーダのみ）,
+  P-NODE+Res（勾配流＋学習可能残差場 h(z)）,
   P-NODE-Energy-TD（時間依存 Φ とボルツマン型リンク尤度・純勾配流 ODE）,
   CoPE-VGAE（Φ をデコーダと ODE で共有）
 
@@ -37,7 +38,7 @@ README_COPE.md のデータパイプライン・損失枠に沿い、ベース�
     --year-range 2010 2020 --epochs 20 --methods all \\
     --optuna-best-json-map pnode_patent_runner/outputs/optuna/optuna_paths_by_method.example.json
 
-例（時間依存 Φ(z,year): CoPE→UnifiedVGAETD、P-NODE→勾配流 TD）:
+例（時間依存 Φ(z,year) / Neural ODE 年条件付け: CoPE→UnifiedVGAETD、P-NODE→勾配流 TD、Neural ODE→NeuralODEPredictorTime）:
   python -m pnode_patent_runner.run_benchmark_comparison \\
     --data-domain patent --data notebooks/work/dataset/topic_info3.csv \\
     --year-range 2010 2020 --epochs 10 --methods all \\
@@ -103,6 +104,23 @@ def _default_csv_for_domain(repo: Path, domain: str) -> Path:
     return repo / "notebooks/work/dataset/arxiv_cs_Data/arxiv_cs_embedded_2020-2026.csv"
 
 
+def _parse_horizon_gaps(s: str) -> List[int]:
+    """カンマ区切り正整数。例 ``1,2,3`` → ``sorted(unique)``。"""
+    raw = (s or "").strip()
+    if not raw:
+        return []
+    out: List[int] = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        v = int(part)
+        if v < 1:
+            raise SystemExit(f"--eval-horizon-gaps の各要素は 1 以上の整数: {v!r}")
+        out.append(v)
+    return sorted(set(out))
+
+
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
@@ -118,6 +136,7 @@ from pnode_patent_runner.cope_experiment import (
     split_bundle_holdout_test_year,
 )
 from pnode_patent_runner.unified_training import (
+    FUTURE_LINK_ECE_N_BINS,
     README_DEFAULT_BETA,
     README_DEFAULT_FUTURE_LINK_WEIGHT,
     README_DEFAULT_LATENT_PRED_WEIGHT,
@@ -126,11 +145,20 @@ from pnode_patent_runner.unified_training import (
     README_DEFAULT_POS_WEIGHT,
     README_DEFAULT_POTENTIAL_WEIGHT,
     README_DEFAULT_TRAJECTORY_WEIGHT,
+    README_DEFAULT_ATTENTION_GROUND_WEIGHT,
+    README_DEFAULT_POTENTIAL_REG_MODE,
+    README_DEFAULT_TRAJECTORY_DELTA_SOURCE,
+    README_DEFAULT_TRAJECTORY_GRAD_FLOOR,
+    README_DEFAULT_TRAJECTORY_GRAD_FLOOR_WEIGHT,
+    README_DEFAULT_TRAJECTORY_LOSS_TYPE,
+    evaluate_future_link_metrics_for_horizon_gaps,
+    evaluate_latent_rollout_metrics_for_horizon_gaps,
     evaluate_val_future_link_metrics,
     evaluate_val_future_link_metrics_for_years,
     train_model_improved,
 )
 from pnode_patent_runner.unified_training_td import (
+    evaluate_future_link_metrics_for_horizon_gaps_td,
     evaluate_val_future_link_metrics_for_years_td,
     evaluate_val_future_link_metrics_td,
     train_model_td,
@@ -161,11 +189,20 @@ def _model_kw_from_optuna_bp(args: Any, bp: Dict[str, Any]) -> ModelBuildKw:
     """run_optuna_unified_vgae の best_params から ModelBuildKw を組み立てる（全手法共通）。"""
     return ModelBuildKw(
         hidden_dim=int(bp.get("hidden_dim", args.hidden_dim)),
-        latent_dim=args.latent_dim,
+        latent_dim=int(bp.get("latent_dim", args.latent_dim)),
         link_score_mode=args.cope_link_score,
         cosine_logit_scale=float(bp.get("cosine_logit_scale", args.cosine_logit_scale)),
         w_pot_init=float(bp.get("w_pot_init", args.w_pot_init)),
         rnn_history_len=int(bp.get("rnn_history_len", args.rnn_history_len)),
+        pnode_history_len=int(bp.get("pnode_history_len", args.pnode_history_len)),
+        pnode_ode_method=str(args.pnode_ode_method),
+        pnode_ode_n_steps=int(args.pnode_ode_n_steps),
+        pnode_potential_feature=str(bp.get("pnode_potential_feature", args.pnode_potential_feature)),
+        pnode_rff_frozen_basis=bool(bp.get("pnode_rff_frozen_basis", args.pnode_rff_frozen_basis)),
+        pnode_density_calibrated=bool(bp.get("pnode_density_calibrated", args.pnode_density_calibrated)),
+        pnode_density_log_weight=float(bp.get("pnode_density_log_weight", args.pnode_density_log_weight)),
+        pnode_density_ema_momentum=float(bp.get("pnode_density_ema_momentum", args.pnode_density_ema_momentum)),
+        pnode_hist_fuse_mode=str(bp.get("pnode_hist_fuse_mode", args.pnode_hist_fuse_mode)),
     )
 
 
@@ -181,13 +218,31 @@ def _train_kw_from_optuna_bp(args: argparse.Namespace, bp: Dict[str, Any]) -> Di
         "num_neg_future": args.num_neg_future,
         "beta": float(bp.get("beta", args.beta)),
         "pos_weight": float(bp.get("pos_weight", args.pos_weight)),
+        "attention_ground_weight": float(
+            bp.get("attention_ground_weight", args.attention_ground_weight)
+        ),
+        "potential_reg_mode": str(
+            bp.get("potential_reg_mode", args.potential_reg_mode)
+        ),
+        "trajectory_delta_source": str(
+            bp.get("trajectory_delta_source", args.trajectory_delta_source)
+        ),
+        "trajectory_loss_type": str(
+            bp.get("trajectory_loss_type", args.trajectory_loss_type)
+        ),
+        "trajectory_grad_floor": float(
+            bp.get("trajectory_grad_floor", args.trajectory_grad_floor)
+        ),
+        "trajectory_grad_floor_weight": float(
+            bp.get("trajectory_grad_floor_weight", args.trajectory_grad_floor_weight)
+        ),
     }
 
 
 def _load_optuna_method_map(path: Path) -> Dict[str, Path]:
     """
     JSON: { "cope": "/abs/or/rel/best_params_unified_vgae_cope.json", "rnn": "...", ... }
-    キーは static / rnn / neural_ode / pnode / pnode_energy / cope。
+    キーは static / rnn / neural_ode / pnode / pnode_residual / pnode_energy / cope。
     """
     if not path.is_file():
         raise SystemExit(f"Optuna マップ JSON が見つかりません: {path}")
@@ -277,9 +332,94 @@ def main() -> None:
         "--methods",
         type=str,
         default="all",
-        help="カンマ区切り: static,rnn,neural_ode,pnode,pnode_energy,cope または all",
+        help="カンマ区切り: static,rnn,neural_ode,pnode,pnode_explicit,pnode_residual,pnode_energy,cope または all",
     )
     p.add_argument("--rnn-history-len", type=int, default=4)
+    p.add_argument(
+        "--pnode-history-len",
+        type=int,
+        default=1,
+        metavar="K",
+        help=(
+            "P-NODE / Neural ODE: 直近 K 年の z を結合し融合層で 1 ステップ ODE 初値に射影（1=従来）。"
+            "K>1 時は --pnode-hist-fuse-mode（GRU または Linear）。Neural ODE は K>1 で neural_ode_hist_fuse。"
+        ),
+    )
+    p.add_argument(
+        "--pnode-potential-feature",
+        type=str,
+        choices=("rff", "mlp"),
+        default="mlp",
+        help="P-NODE / P-NODE+Res の Φ ネット: rff=sin/cos 特徴、mlp=z から MLP（データ適応、既定）",
+    )
+    p.add_argument(
+        "--pnode-rff-frozen-basis",
+        action="store_true",
+        help="pnode_potential_feature=rff のときのみ: 射影行列 B を学習しない（従来の固定 RFF 基底）",
+    )
+    p.add_argument(
+        "--pnode-density-calibrated",
+        action="store_true",
+        help="P-NODE 系で CalibratedPotentialNet（Φ = φ_nn - w log p_hist）を使用（EMA 密度更新あり）",
+    )
+    p.add_argument(
+        "--pnode-density-log-weight",
+        type=float,
+        default=1.0,
+        help="--pnode-density-calibrated 時の log p_hist の係数の初期値",
+    )
+    p.add_argument(
+        "--pnode-density-ema-momentum",
+        type=float,
+        default=0.05,
+        help="--pnode-density-calibrated 時の μ の EMA モメンタム",
+    )
+    p.add_argument(
+        "--pnode-hist-fuse-mode",
+        type=str,
+        choices=("linear", "gru"),
+        default="gru",
+        help="P-NODE 系で K>1 のときの履歴融合: gru（既定）または linear（従来）",
+    )
+    p.add_argument(
+        "--pc-w-rho-init", type=float, default=0.1,
+        help="PC-PNODE: w_ρ（密度引力強度）の初期値",
+    )
+    p.add_argument(
+        "--pc-w-delta-init", type=float, default=0.1,
+        help="PC-PNODE: w_Δ（トレンド引力強度）の初期値",
+    )
+    p.add_argument(
+        "--pc-log-bandwidth-init", type=float, default=0.0,
+        help="PC-PNODE: KDE帯域幅の log 初期値（exp(0)=1.0）",
+    )
+    p.add_argument(
+        "--pc-density-align-weight", type=float, default=0.005,
+        help="PC-PNODE: density-align 正則化損失の重み λ_da",
+    )
+    p.add_argument(
+        "--pnode-ode-method",
+        type=str,
+        default="dopri5",
+        choices=("dopri5", "rk4", "euler"),
+        help="P-NODE 勾配流 ODE の積分法（rk4/euler は固定格子、--pnode-ode-n-steps で分割数）",
+    )
+    p.add_argument(
+        "--pnode-ode-n-steps",
+        type=int,
+        default=4,
+        help="rk4/euler 時の区間 [0,1] の分割数（大きいほど精密だが遅い）",
+    )
+    p.add_argument(
+        "--loss-aux-warmup-epochs",
+        type=int,
+        default=0,
+        metavar="N",
+        help=(
+            "N>1 のとき λ_pot・λ_traj を線形ランプ（epoch0 で 0、epoch N-1 で CLI 既定値）。"
+            "N<=0 で無効（従来どおり一括）。N==1 は無効扱い（常に係数 1）。"
+        ),
+    )
     p.add_argument(
         "--cope-link-score",
         type=str,
@@ -303,6 +443,48 @@ def main() -> None:
     )
     p.add_argument("--potential-weight", type=float, default=README_DEFAULT_POTENTIAL_WEIGHT)
     p.add_argument("--trajectory-weight", type=float, default=README_DEFAULT_TRAJECTORY_WEIGHT)
+    p.add_argument(
+        "--attention-ground-weight",
+        type=float,
+        default=README_DEFAULT_ATTENTION_GROUND_WEIGHT,
+        help=(
+            "pnode_explicit のみ: A(z)=exp(-Phi) を左パーティションの "
+            "log(1+deg) 正規化目標に近づける補助損失の係数（0 で無効）"
+        ),
+    )
+    p.add_argument(
+        "--potential-reg-mode",
+        type=str,
+        default=README_DEFAULT_POTENTIAL_REG_MODE,
+        choices=("l2", "log1p_sq", "centered_l2"),
+        help="L_pot の形: l2(既定 0.01·Φ²) / log1p_sq / centered_l2（Φ 中心化）",
+    )
+    p.add_argument(
+        "--trajectory-delta-source",
+        type=str,
+        default=README_DEFAULT_TRAJECTORY_DELTA_SOURCE,
+        choices=("z", "mu"),
+        help="L_traj の差分 (μ_{t+1}−·): z 再パラム(既定) または μ（_encoder 平均）",
+    )
+    p.add_argument(
+        "--trajectory-loss-type",
+        type=str,
+        default=README_DEFAULT_TRAJECTORY_LOSS_TYPE,
+        choices=("cosine", "smooth1mcos", "huber_vec"),
+        help="L_traj: 余弦 / smooth_l1(1-cos) / 単位方向ベクトル差の smooth_l1",
+    )
+    p.add_argument(
+        "--trajectory-grad-floor",
+        type=float,
+        default=README_DEFAULT_TRAJECTORY_GRAD_FLOOR,
+        help="||∇Φ|| の希望下限; --trajectory-grad-floor-weight>0 のときペナ化",
+    )
+    p.add_argument(
+        "--trajectory-grad-floor-weight",
+        type=float,
+        default=README_DEFAULT_TRAJECTORY_GRAD_FLOOR_WEIGHT,
+        help="L_traj への (floor-||∇Φ||)_+^2 係数",
+    )
     p.add_argument("--latent-pred-weight", type=float, default=README_DEFAULT_LATENT_PRED_WEIGHT)
     p.add_argument("--future-link-weight", type=float, default=README_DEFAULT_FUTURE_LINK_WEIGHT)
     p.add_argument("--num-neg-recon", type=int, default=README_DEFAULT_NUM_NEG_RECON)
@@ -366,7 +548,8 @@ def main() -> None:
         action="store_true",
         help=(
             "Φ(z,year): CoPE は UnifiedVGAETD、P-NODE は時間依存勾配流。"
-            "Static/RNN/Neural ODE は従来どおり（ポテンシャル項なし）。"
+            "Neural ODE は年埋め込み付きベクトル場（NeuralODEPredictorTime）。"
+            "Static/RNN は従来どおり。"
         ),
     )
     p.add_argument(
@@ -389,7 +572,18 @@ def main() -> None:
             "P-NODE-Energy-TD の HTML 可視化: run_interactive_landscape_pnode_energy_td --load-checkpoint この .pt。"
         ),
     )
+    p.add_argument(
+        "--eval-horizon-gaps",
+        type=str,
+        default="",
+        metavar="K_LIST",
+        help=(
+            "省略可。例: 1,2,3。sorted(years) 上で終端年から k ステップ遡った起点→終端の future-link を "
+            "ロールアウト評価し、JSON に train_split_metrics_by_horizon_gap / final_metrics_by_horizon_gap を追加。"
+        ),
+    )
     args = p.parse_args()
+    horizon_gaps = _parse_horizon_gaps(getattr(args, "eval_horizon_gaps", ""))
 
     data_str = (args.data or "").strip()
     data_path = Path(data_str) if data_str else _default_csv_for_domain(repo, args.data_domain)
@@ -471,6 +665,8 @@ def main() -> None:
         f"λ_pot={args.potential_weight}, λ_traj={args.trajectory_weight}, "
         f"neg_recon={args.num_neg_recon}, neg_future={args.num_neg_future}"
     )
+    if horizon_gaps:
+        print(f"eval_horizon_gaps (index steps on sorted year keys): {horizon_gaps}")
 
     optuna_by_method: Dict[str, Tuple[Dict[str, Any], Dict[str, Any], Path]] = {}
     optuna_map_path: Optional[Path] = None
@@ -550,12 +746,25 @@ def main() -> None:
         cosine_logit_scale=args.cosine_logit_scale,
         w_pot_init=args.w_pot_init,
         rnn_history_len=args.rnn_history_len,
+        pnode_history_len=int(args.pnode_history_len),
+        pnode_ode_method=str(args.pnode_ode_method),
+        pnode_ode_n_steps=int(args.pnode_ode_n_steps),
         density_calibrated_potential=bool(args.cope_density_calibrated),
         density_log_weight=float(args.cope_density_log_weight),
         density_ema_momentum=float(args.cope_density_ema_momentum),
         time_dependent_potential=bool(args.time_dependent_potential),
         year_min=int(_y_calendar_min),
         year_max=int(_y_calendar_max),
+        pnode_potential_feature=str(args.pnode_potential_feature),
+        pnode_rff_frozen_basis=bool(args.pnode_rff_frozen_basis),
+        pnode_density_calibrated=bool(args.pnode_density_calibrated),
+        pnode_density_log_weight=float(args.pnode_density_log_weight),
+        pnode_density_ema_momentum=float(args.pnode_density_ema_momentum),
+        pnode_hist_fuse_mode=str(args.pnode_hist_fuse_mode),
+        pc_w_rho_init=float(args.pc_w_rho_init),
+        pc_w_delta_init=float(args.pc_w_delta_init),
+        pc_log_bandwidth_init=float(args.pc_log_bandwidth_init),
+        pc_density_align_weight=float(args.pc_density_align_weight),
     )
 
     name_by_key = {k: n for n, k in BASELINE_METHOD_SPECS}
@@ -580,6 +789,19 @@ def main() -> None:
             time_dependent_potential=mb.time_dependent_potential,
             year_min=mb.year_min,
             year_max=mb.year_max,
+            pnode_history_len=mb.pnode_history_len,
+            pnode_ode_method=mb.pnode_ode_method,
+            pnode_ode_n_steps=mb.pnode_ode_n_steps,
+            pnode_potential_feature=mb.pnode_potential_feature,
+            pnode_rff_frozen_basis=mb.pnode_rff_frozen_basis,
+            pnode_density_calibrated=mb.pnode_density_calibrated,
+            pnode_density_log_weight=mb.pnode_density_log_weight,
+            pnode_density_ema_momentum=mb.pnode_density_ema_momentum,
+            pnode_hist_fuse_mode=mb.pnode_hist_fuse_mode,
+            pc_w_rho_init=mb.pc_w_rho_init,
+            pc_w_delta_init=mb.pc_w_delta_init,
+            pc_log_bandwidth_init=mb.pc_log_bandwidth_init,
+            pc_density_align_weight=mb.pc_density_align_weight,
         )
         if key == "cope":
             mb_run = dataclasses.replace(
@@ -597,6 +819,7 @@ def main() -> None:
                     g_tr,
                     bundle.num_corps,
                     h_tr,
+                    loss_aux_warmup_epochs=int(args.loss_aux_warmup_epochs),
                     **tw,
                 )
             else:
@@ -605,9 +828,11 @@ def main() -> None:
                     g_tr,
                     bundle.num_corps,
                     h_tr,
+                    loss_aux_warmup_epochs=int(args.loss_aux_warmup_epochs),
                     **tw,
                 )
         else:
+            _da_w = float(mb_run.pc_density_align_weight) if key == "pnode_pc" else 0.0
             train_kw = dict(
                 num_epochs=args.epochs,
                 potential_weight=args.potential_weight,
@@ -619,6 +844,13 @@ def main() -> None:
                 num_neg_future=args.num_neg_future,
                 beta=args.beta,
                 pos_weight=args.pos_weight,
+                density_align_weight=_da_w,
+                attention_ground_weight=float(args.attention_ground_weight),
+                potential_reg_mode=str(args.potential_reg_mode),
+                trajectory_delta_source=str(args.trajectory_delta_source),
+                trajectory_loss_type=str(args.trajectory_loss_type),
+                trajectory_grad_floor=float(args.trajectory_grad_floor),
+                trajectory_grad_floor_weight=float(args.trajectory_grad_floor_weight),
             )
             if isinstance(model, UnifiedVGAETD):
                 _, _, best_auc, hist = train_model_td(
@@ -626,6 +858,7 @@ def main() -> None:
                     g_tr,
                     bundle.num_corps,
                     h_tr,
+                    loss_aux_warmup_epochs=int(args.loss_aux_warmup_epochs),
                     **train_kw,
                 )
             else:
@@ -634,6 +867,7 @@ def main() -> None:
                     g_tr,
                     bundle.num_corps,
                     h_tr,
+                    loss_aux_warmup_epochs=int(args.loss_aux_warmup_epochs),
                     **train_kw,
                 )
         _save_ckpt = (getattr(args, "save_checkpoint_dir", None) or "").strip()
@@ -646,8 +880,8 @@ def main() -> None:
                     "state_dict": model.state_dict(),
                     "year_min": int(mb.year_min),
                     "year_max": int(mb.year_max),
-                    "hidden_dim": int(args.hidden_dim),
-                    "latent_dim": int(args.latent_dim),
+                    "hidden_dim": int(mb_run.hidden_dim),
+                    "latent_dim": int(mb_run.latent_dim),
                     "cope_link_score": str(args.cope_link_score),
                     "cosine_logit_scale": float(args.cosine_logit_scale),
                     "method_key": key,
@@ -667,6 +901,7 @@ def main() -> None:
             )
         train_split_auc = val_train_m["auc"]
         train_split_ap = val_train_m["ap"]
+        train_split_ece = val_train_m.get("ece", float("nan"))
         if holdout is not None:
             if isinstance(model, UnifiedVGAETD):
                 val_h = evaluate_val_future_link_metrics_for_years_td(
@@ -688,11 +923,23 @@ def main() -> None:
                 )
             final_auc = val_h["auc"]
             final_ap = val_h["ap"]
+            final_ece = val_h.get("ece", float("nan"))
         else:
             final_auc = train_split_auc
             final_ap = train_split_ap
+            final_ece = train_split_ece
         table_rows.append(
-            (label, key, best_auc, train_split_auc, train_split_ap, final_auc, final_ap)
+            (
+                label,
+                key,
+                best_auc,
+                train_split_auc,
+                train_split_ap,
+                train_split_ece,
+                final_auc,
+                final_ap,
+                final_ece,
+            )
         )
         auc_curve = []
         for x in hist["val_auc"]:
@@ -703,8 +950,10 @@ def main() -> None:
             "best_val_auc": best_auc,
             "final_val_auc": final_auc,
             "final_val_ap": final_ap,
+            "final_val_ece": final_ece,
             "train_split_val_auc": train_split_auc,
             "train_split_val_ap": train_split_ap,
+            "train_split_val_ece": train_split_ece,
             "val_auc_per_epoch": auc_curve,
         }
         if hist.get("loss"):
@@ -726,6 +975,69 @@ def main() -> None:
             row["optuna_tuned_method_key"] = key
             if key == "cope":
                 row["optuna_tuned_cope"] = True
+        if horizon_gaps:
+            if isinstance(model, UnifiedVGAETD):
+                row["train_split_metrics_by_horizon_gap"] = (
+                    evaluate_future_link_metrics_for_horizon_gaps_td(
+                        model, g_tr, bundle.num_corps, device, horizon_gaps, year_next=None
+                    )
+                )
+                if holdout is not None:
+                    row["final_metrics_by_horizon_gap"] = (
+                        evaluate_future_link_metrics_for_horizon_gaps_td(
+                            model,
+                            holdout.graphs_full,
+                            bundle.num_corps,
+                            device,
+                            horizon_gaps,
+                            year_next=int(holdout.holdout_test_year),
+                        )
+                    )
+                else:
+                    row["final_metrics_by_horizon_gap"] = dict(
+                        row["train_split_metrics_by_horizon_gap"]
+                    )
+            else:
+                row["train_split_metrics_by_horizon_gap"] = (
+                    evaluate_future_link_metrics_for_horizon_gaps(
+                        model, g_tr, bundle.num_corps, device, horizon_gaps, year_next=None
+                    )
+                )
+                if holdout is not None:
+                    row["final_metrics_by_horizon_gap"] = (
+                        evaluate_future_link_metrics_for_horizon_gaps(
+                            model,
+                            holdout.graphs_full,
+                            bundle.num_corps,
+                            device,
+                            horizon_gaps,
+                            year_next=int(holdout.holdout_test_year),
+                        )
+                    )
+                else:
+                    row["final_metrics_by_horizon_gap"] = dict(
+                        row["train_split_metrics_by_horizon_gap"]
+                    )
+            row["train_split_latent_metrics_by_horizon_gap"] = (
+                evaluate_latent_rollout_metrics_for_horizon_gaps(
+                    model, g_tr, bundle.num_corps, device, horizon_gaps, year_next=None
+                )
+            )
+            if holdout is not None:
+                row["final_latent_metrics_by_horizon_gap"] = (
+                    evaluate_latent_rollout_metrics_for_horizon_gaps(
+                        model,
+                        holdout.graphs_full,
+                        bundle.num_corps,
+                        device,
+                        horizon_gaps,
+                        year_next=int(holdout.holdout_test_year),
+                    )
+                )
+            else:
+                row["final_latent_metrics_by_horizon_gap"] = dict(
+                    row["train_split_latent_metrics_by_horizon_gap"]
+                )
         _curve_dir = (getattr(args, "save_training_curves_dir", None) or "").strip()
         if _curve_dir:
             from pnode_patent_runner.plot_training_curves import save_training_history_png
@@ -745,35 +1057,61 @@ def main() -> None:
             print(
                 f"\n[{label}]{tag} best_val_auc={best_auc:.4f}  "
                 f"train_split_auc={train_split_auc:.4f}  train_split_ap={train_split_ap:.4f}  "
+                f"train_split_ece={train_split_ece:.4f}  "
                 f"HOLDOUT {holdout.year_prev}→{holdout.holdout_test_year}: "
-                f"auc={final_auc:.4f} ap={final_ap:.4f}  "
+                f"auc={final_auc:.4f} ap={final_ap:.4f} ece={final_ece:.4f}  "
                 f"per_epoch={[round(x, 4) for x in hist['val_auc']]}"
             )
         else:
             print(
                 f"\n[{label}]{tag} best_val_auc={best_auc:.4f}  final_val_auc={final_auc:.4f}  "
-                f"final_val_ap={final_ap:.4f}  "
+                f"final_val_ap={final_ap:.4f}  final_val_ece={final_ece:.4f}  "
                 f"per_epoch={[round(x, 4) for x in hist['val_auc']]}"
             )
+        if horizon_gaps:
+            ho = row.get("final_metrics_by_horizon_gap", {})
+            print(
+                f"  horizon AUC (final): { {gk: float(hv['auc']) for gk, hv in sorted(ho.items(), key=lambda x: int(x[0]))} }"
+            )
+            lz = row.get("final_latent_metrics_by_horizon_gap", {})
+            if lz:
+                mse_h = {
+                    gk: float(hv["mse"])
+                    for gk, hv in sorted(lz.items(), key=lambda x: int(x[0]))
+                    if isinstance(hv, dict) and "mse" in hv
+                }
+                dacc_h = {
+                    gk: float(hv["direction_agreement"])
+                    for gk, hv in sorted(lz.items(), key=lambda x: int(x[0]))
+                    if isinstance(hv, dict) and "direction_agreement" in hv
+                }
+                print(f"  horizon latent MSE (final): {mse_h}")
+                print(f"  horizon trend DirAcc (final): {dacc_h}")
 
     print("\n" + "=" * 72)
     if holdout is not None:
         h = holdout
         print(
-            f"{'method':<14} {'key':<10} {'best_auc':>9} {'tr_auc':>9} {'tr_ap':>9} "
-            f"{'ho_auc':>9} {'ho_ap':>9}  (H={h.year_prev}→{h.holdout_test_year})"
+            f"{'method':<14} {'key':<10} {'best_auc':>9} {'tr_auc':>9} {'tr_ap':>9} {'tr_ece':>9} "
+            f"{'ho_auc':>9} {'ho_ap':>9} {'ho_ece':>9}  (H={h.year_prev}→{h.holdout_test_year})"
         )
-        print("-" * 72)
-        for label, key, best_auc, tsa, tsp, f_auc, f_ap in table_rows:
+        print("-" * 96)
+        for label, key, best_auc, tsa, tsp, tse, f_auc, f_ap, fse in table_rows:
             print(
-                f"{label:<14} {key:<10} {best_auc:9.4f} {tsa:9.4f} {tsp:9.4f} {f_auc:9.4f} {f_ap:9.4f}"
+                f"{label:<14} {key:<10} {best_auc:9.4f} {tsa:9.4f} {tsp:9.4f} {tse:9.4f} "
+                f"{f_auc:9.4f} {f_ap:9.4f} {fse:9.4f}"
             )
     else:
-        print(f"{'method':<14} {'key':<12} {'best_auc':>10} {'final_auc':>10} {'final_ap':>10}")
-        print("-" * 72)
-        for label, key, best_auc, tsa, tsp, f_auc, f_ap in table_rows:
-            print(f"{label:<14} {key:<12} {best_auc:10.4f} {f_auc:10.4f} {f_ap:10.4f}")
-    print("=" * 72)
+        print(
+            f"{'method':<14} {'key':<12} {'best_auc':>10} {'final_auc':>10} "
+            f"{'final_ap':>10} {'final_ece':>10}"
+        )
+        print("-" * 78)
+        for label, key, best_auc, tsa, tsp, tse, f_auc, f_ap, fse in table_rows:
+            print(
+                f"{label:<14} {key:<12} {best_auc:10.4f} {f_auc:10.4f} {f_ap:10.4f} {fse:10.4f}"
+            )
+    print("=" * 96 if holdout is not None else "=" * 78)
 
     default_out_dir.mkdir(parents=True, exist_ok=True)
     _td_tag = "_td" if args.time_dependent_potential else ""
@@ -784,6 +1122,13 @@ def main() -> None:
     )
     payload = {
         "readme_pipeline": True,
+        "future_link_ece_n_bins": int(FUTURE_LINK_ECE_N_BINS),
+        "eval_horizon_gaps": horizon_gaps,
+        "latent_horizon_metrics_note": (
+            "mse/mae: mean over graphs[year_next].active_mask nodes of (z_rollout - mu_encoder). "
+            "direction_agreement: fraction where sign(||mu||_t-||mu||_{t-k}) equals sign(||z||_pred-||z||_start) "
+            "among nodes with nonzero true increment; z uses eval encode (deterministic mu)."
+        ),
         "data_domain": args.data_domain,
         "data": str(data_path),
         "time_dependent_potential": bool(args.time_dependent_potential),
@@ -798,6 +1143,8 @@ def main() -> None:
         "years": sorted(bundle.graphs.keys()),
         "seed": args.seed,
         "epochs": args.epochs,
+        "hidden_dim": int(args.hidden_dim),
+        "latent_dim": int(args.latent_dim),
         "link_score_mode": args.cope_link_score,
         "cope_density_calibrated": bool(args.cope_density_calibrated),
         "cope_density_log_weight": float(args.cope_density_log_weight),
@@ -811,7 +1158,23 @@ def main() -> None:
             "trajectory_weight": args.trajectory_weight,
             "num_neg_recon": args.num_neg_recon,
             "num_neg_future": args.num_neg_future,
+            "loss_aux_warmup_epochs": int(args.loss_aux_warmup_epochs),
+            "attention_ground_weight": float(args.attention_ground_weight),
+            "potential_reg_mode": str(args.potential_reg_mode),
+            "trajectory_delta_source": str(args.trajectory_delta_source),
+            "trajectory_loss_type": str(args.trajectory_loss_type),
+            "trajectory_grad_floor": float(args.trajectory_grad_floor),
+            "trajectory_grad_floor_weight": float(args.trajectory_grad_floor_weight),
         },
+        "pnode_history_len": int(args.pnode_history_len),
+        "pnode_ode_method": str(args.pnode_ode_method),
+        "pnode_ode_n_steps": int(args.pnode_ode_n_steps),
+        "pnode_potential_feature": str(args.pnode_potential_feature),
+        "pnode_rff_frozen_basis": bool(args.pnode_rff_frozen_basis),
+        "pnode_density_calibrated": bool(args.pnode_density_calibrated),
+        "pnode_density_log_weight": float(args.pnode_density_log_weight),
+        "pnode_density_ema_momentum": float(args.pnode_density_ema_momentum),
+        "pnode_hist_fuse_mode": str(args.pnode_hist_fuse_mode),
         "optuna_best_json": (
             str(optuna_by_method["cope"][2]) if "cope" in optuna_by_method else None
         ),

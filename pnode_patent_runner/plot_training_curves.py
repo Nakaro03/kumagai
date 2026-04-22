@@ -66,13 +66,18 @@ def plot_training_history(
     if isinstance(tc, dict):
         pot = tc.get("potential")
         traj = tc.get("trajectory")
+        gpn = tc.get("grad_phi_l2")
         if pot:
             ax2.plot(_epochs(len(pot)), pot, label="potential (raw term)", color="C2")
         if traj:
             ax2.plot(_epochs(len(traj)), traj, label="trajectory", color="C3", linestyle="--")
+        if gpn:
+            ax2.plot(
+                _epochs(len(gpn)), gpn, label="grad_phi L2 (mean ||∇Φ||)", color="C7", linewidth=1.0
+            )
         ax2.set_xlabel("epoch")
         ax2.set_ylabel("mean batch value")
-        ax2.set_title("Φ 関連（potential / trajectory 生値）")
+        ax2.set_title("Φ 関連（potential / trajectory / ||∇Φ||）")
         ax2.legend(loc="best", fontsize=8)
         ax2.grid(True, alpha=0.3)
 

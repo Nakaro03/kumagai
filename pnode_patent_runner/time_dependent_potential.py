@@ -15,6 +15,8 @@ import numpy as np
 import torch
 import torch.nn as nn
 
+from pnode_patent_runner.models import integrate_gradient_flow_ode
+
 
 # ---------------------------------------------------------------------------
 # 補助：暦年 → インデックス変換
@@ -462,7 +464,15 @@ class GradientODEFuncTimePure(nn.Module):
 class GradientNeuralODEPredictorEnergy(nn.Module):
     """純勾配流 ODE 予測子（旧実装・後方互換用）。"""
 
-    def __init__(self, latent_dim: int, hidden_dim: int, year_min: int, year_max: int):
+    def __init__(
+        self,
+        latent_dim: int,
+        hidden_dim: int,
+        year_min: int,
+        year_max: int,
+        ode_method: str = "dopri5",
+        ode_n_steps: int = 4,
+    ):
         super().__init__()
         self.potential_net = TimeDependentPotentialNet(
             latent_dim, hidden_dim, year_min, year_max
@@ -470,22 +480,32 @@ class GradientNeuralODEPredictorEnergy(nn.Module):
         self.ode_func = GradientODEFuncTimePure(self.potential_net)
         self.year_min = year_min
         self.year_max = year_max
+        self.ode_method = str(ode_method or "dopri5").lower()
+        self.ode_n_steps = int(ode_n_steps)
 
     def forward(self, z_current: torch.Tensor, year_calendar_start: int, delta_t: float = 1.0):
-        from torchdiffeq import odeint_adjoint as odeint
-
-        device = z_current.device
         self.ode_func.set_ode_calendar_year(int(year_calendar_start))
-        t_span = torch.tensor([0.0, delta_t], device=device)
-        return odeint(
-            self.ode_func, z_current, t_span, method="dopri5", rtol=1e-3, atol=1e-3
-        )[-1]
+        return integrate_gradient_flow_ode(
+            self.ode_func,
+            z_current,
+            float(delta_t),
+            method=self.ode_method,
+            n_steps=self.ode_n_steps,
+        )
 
 
 class GradientNeuralODEPredictorTime(nn.Module):
     """tanh ゲート付き勾配流 ODE 予測子（旧実装・後方互換用）。"""
 
-    def __init__(self, latent_dim: int, hidden_dim: int, year_min: int, year_max: int):
+    def __init__(
+        self,
+        latent_dim: int,
+        hidden_dim: int,
+        year_min: int,
+        year_max: int,
+        ode_method: str = "dopri5",
+        ode_n_steps: int = 4,
+    ):
         super().__init__()
         self.potential_net = TimeDependentPotentialNet(
             latent_dim, hidden_dim, year_min, year_max
@@ -493,16 +513,18 @@ class GradientNeuralODEPredictorTime(nn.Module):
         self.ode_func = GradientODEFuncTime(self.potential_net)
         self.year_min = year_min
         self.year_max = year_max
+        self.ode_method = str(ode_method or "dopri5").lower()
+        self.ode_n_steps = int(ode_n_steps)
 
     def forward(self, z_current: torch.Tensor, year_calendar_start: int, delta_t: float = 1.0):
-        from torchdiffeq import odeint_adjoint as odeint
-
-        device = z_current.device
         self.ode_func.set_ode_calendar_year(int(year_calendar_start))
-        t_span = torch.tensor([0.0, delta_t], device=device)
-        return odeint(
-            self.ode_func, z_current, t_span, method="dopri5", rtol=1e-3, atol=1e-3
-        )[-1]
+        return integrate_gradient_flow_ode(
+            self.ode_func,
+            z_current,
+            float(delta_t),
+            method=self.ode_method,
+            n_steps=self.ode_n_steps,
+        )
 
 
 # ---------------------------------------------------------------------------

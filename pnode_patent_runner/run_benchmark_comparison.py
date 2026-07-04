@@ -89,9 +89,13 @@ import torch
 _REPO_ROOT = Path(__file__).resolve().parents[1]
 
 
+_BIPARTITE_DOMAINS = ("pharma", "energy", "semiconductor", "agrifood", "computing", "construction")
+
 def _default_csv_for_domain(repo: Path, domain: str) -> Path:
     if domain == "patent":
         return repo / "notebooks/work/dataset/topic_info3.csv"
+    if domain in _BIPARTITE_DOMAINS:
+        return repo / f"data/processed/bipartite_{domain}.csv"
     # arxiv / author_topic は同一 ArXiv 埋め込み CSV（著者–論文は url、著者–トピックは topic 列を使用）
     # 全次元版 _full を優先（省略表示入りの CSV は preprocess で拒否される）
     for candidate in (
@@ -131,6 +135,7 @@ from pnode_patent_runner.cope_experiment import (
     build_baseline_model,
     load_author_paper_graph_bundle,
     load_author_topic_graph_bundle,
+    load_bipartite_domain_graph_bundle,
     load_cope_graph_bundle,
     parse_methods_csv,
     split_bundle_holdout_test_year,
@@ -151,6 +156,7 @@ from pnode_patent_runner.unified_training import (
     README_DEFAULT_TRAJECTORY_GRAD_FLOOR,
     README_DEFAULT_TRAJECTORY_GRAD_FLOOR_WEIGHT,
     README_DEFAULT_TRAJECTORY_LOSS_TYPE,
+    README_DEFAULT_TREND_WEIGHT,
     evaluate_future_link_metrics_for_horizon_gaps,
     evaluate_latent_rollout_metrics_for_horizon_gaps,
     evaluate_val_future_link_metrics,
@@ -275,9 +281,14 @@ def main() -> None:
     p.add_argument(
         "--data-domain",
         type=str,
-        choices=("patent", "arxiv", "author_topic"),
+        choices=("patent", "arxiv", "author_topic", "pharma", "energy", "semiconductor", "agrifood", "computing", "construction"),
         default="patent",
-        help="patent=企業–特許 / arxiv=著者–論文 / author_topic=著者–トピック（topic 列, P-NODE_paper_topic.ipynb）",
+        help=(
+            "patent=企業–特許 / arxiv=著者–論文 / author_topic=著者–トピック / "
+            "pharma=医薬(A61/C12) / energy=エネルギー(Y02) / "
+            "semiconductor=半導体(H01L/H04) / agrifood=農業食品(A01/A23) / "
+            "computing=情報処理(G06) / construction=建築土木(E04/E02/E03/E21)"
+        ),
     )
     p.add_argument(
         "--data",
@@ -382,6 +393,24 @@ def main() -> None:
         help="P-NODE 系で K>1 のときの履歴融合: gru（既定）または linear（従来）",
     )
     p.add_argument(
+        "--nmf-num-basis",
+        type=int,
+        default=12,
+        help="Φ-NBD（pnode_nbd）の基底数 K = NMF テーマ数",
+    )
+    p.add_argument(
+        "--nmf-anchor-weight",
+        type=float,
+        default=1.0,
+        help="Φ-NBD のテーマ重心ガウス井戸の強度",
+    )
+    p.add_argument(
+        "--nmf-anchor-momentum",
+        type=float,
+        default=0.1,
+        help="Φ-NBD のテーマ重心 EMA モメンタム",
+    )
+    p.add_argument(
         "--pc-w-rho-init", type=float, default=0.1,
         help="PC-PNODE: w_ρ（密度引力強度）の初期値",
     )
@@ -396,6 +425,12 @@ def main() -> None:
     p.add_argument(
         "--pc-density-align-weight", type=float, default=0.005,
         help="PC-PNODE: density-align 正則化損失の重み λ_da",
+    )
+    p.add_argument(
+        "--trend-weight",
+        type=float,
+        default=README_DEFAULT_TREND_WEIGHT,
+        help="PC-PNODE: L_trend の重み λ_trend（0=無効。pnode_pc のみ）",
     )
     p.add_argument(
         "--pnode-ode-method",
@@ -605,6 +640,14 @@ def main() -> None:
                 years_csv=args.years,
                 all_years=args.all_years,
             )
+        elif args.data_domain in _BIPARTITE_DOMAINS:
+            bundle = load_bipartite_domain_graph_bundle(
+                data_path,
+                min_events=args.min_patents,
+                year_range=yr,
+                years_csv=args.years,
+                all_years=args.all_years,
+            )
         else:
             ymin: Optional[int] = None if args.arxiv_no_year_filter else args.arxiv_year_min
             ymax: Optional[int] = None if args.arxiv_no_year_filter else args.arxiv_year_max
@@ -739,6 +782,32 @@ def main() -> None:
             "警告: --time-dependent-potential 時は CoPE の density_calibrated を未対応のため無視します。"
         )
 
+    # Φ-NBD（pnode_nbd）用: NMF テーマ荷重 (num_nodes, K) を構築
+    _nmf_node_theme_W = None
+    if "pnode_nbd" in method_keys:
+        from pnode_patent_runner.nmf_theme_anchors import build_node_theme_matrix
+
+        print(
+            f"NMF テーマ抽出中 (K={args.nmf_num_basis}, "
+            f"years={_y_calendar_min}..{_y_calendar_max}, inventors={bundle.num_corps})...",
+            flush=True,
+        )
+        node_W, _H, _subs = build_node_theme_matrix(
+            data_path,
+            bundle.corps,
+            bundle.total_n,
+            int(_y_calendar_min),
+            int(_y_calendar_max),
+            int(args.nmf_num_basis),
+            seed=int(args.seed),
+        )
+        _nmf_node_theme_W = torch.from_numpy(node_W)
+        print(
+            f"  node_theme_W: shape={tuple(_nmf_node_theme_W.shape)}, "
+            f"n_subclasses={len(_subs)}",
+            flush=True,
+        )
+
     mb = ModelBuildKw(
         hidden_dim=args.hidden_dim,
         latent_dim=args.latent_dim,
@@ -761,10 +830,15 @@ def main() -> None:
         pnode_density_log_weight=float(args.pnode_density_log_weight),
         pnode_density_ema_momentum=float(args.pnode_density_ema_momentum),
         pnode_hist_fuse_mode=str(args.pnode_hist_fuse_mode),
+        neural_ode_hist_fuse_mode=str(getattr(args, "neural_ode_hist_fuse_mode", "linear")),
         pc_w_rho_init=float(args.pc_w_rho_init),
         pc_w_delta_init=float(args.pc_w_delta_init),
         pc_log_bandwidth_init=float(args.pc_log_bandwidth_init),
         pc_density_align_weight=float(args.pc_density_align_weight),
+        nmf_node_theme_W=_nmf_node_theme_W,
+        nmf_num_basis=int(args.nmf_num_basis),
+        nmf_anchor_weight=float(args.nmf_anchor_weight),
+        nmf_anchor_momentum=float(args.nmf_anchor_momentum),
     )
 
     name_by_key = {k: n for n, k in BASELINE_METHOD_SPECS}
@@ -798,10 +872,15 @@ def main() -> None:
             pnode_density_log_weight=mb.pnode_density_log_weight,
             pnode_density_ema_momentum=mb.pnode_density_ema_momentum,
             pnode_hist_fuse_mode=mb.pnode_hist_fuse_mode,
+            neural_ode_hist_fuse_mode=mb.neural_ode_hist_fuse_mode,
             pc_w_rho_init=mb.pc_w_rho_init,
             pc_w_delta_init=mb.pc_w_delta_init,
             pc_log_bandwidth_init=mb.pc_log_bandwidth_init,
             pc_density_align_weight=mb.pc_density_align_weight,
+            nmf_node_theme_W=mb.nmf_node_theme_W,
+            nmf_num_basis=mb.nmf_num_basis,
+            nmf_anchor_weight=mb.nmf_anchor_weight,
+            nmf_anchor_momentum=mb.nmf_anchor_momentum,
         )
         if key == "cope":
             mb_run = dataclasses.replace(
@@ -833,6 +912,8 @@ def main() -> None:
                 )
         else:
             _da_w = float(mb_run.pc_density_align_weight) if key == "pnode_pc" else 0.0
+            _trend_w = float(args.trend_weight) if key == "pnode_pc" else 0.0
+            _topic_growth = bundle.topic_growth_by_year if (key == "pnode_pc" and _trend_w > 0) else None
             train_kw = dict(
                 num_epochs=args.epochs,
                 potential_weight=args.potential_weight,
@@ -851,6 +932,8 @@ def main() -> None:
                 trajectory_loss_type=str(args.trajectory_loss_type),
                 trajectory_grad_floor=float(args.trajectory_grad_floor),
                 trajectory_grad_floor_weight=float(args.trajectory_grad_floor_weight),
+                trend_weight=_trend_w,
+                topic_growth_by_year=_topic_growth,
             )
             if isinstance(model, UnifiedVGAETD):
                 _, _, best_auc, hist = train_model_td(
@@ -859,7 +942,7 @@ def main() -> None:
                     bundle.num_corps,
                     h_tr,
                     loss_aux_warmup_epochs=int(args.loss_aux_warmup_epochs),
-                    **train_kw,
+                    **{k: v for k, v in train_kw.items() if k not in ("trend_weight", "topic_growth_by_year")},
                 )
             else:
                 _, _, best_auc, hist = train_model_improved(

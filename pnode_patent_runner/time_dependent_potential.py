@@ -567,6 +567,9 @@ class BasisDecomposedPotentialNet(nn.Module):
         year_max: int,
         num_basis: int = 8,
         time_fourier_K: int = 8,
+        node_theme_W: "torch.Tensor | None" = None,
+        anchor_weight: float = 1.0,
+        anchor_momentum: float = 0.1,
     ):
         super().__init__()
         self.latent_dim = int(latent_dim)
@@ -575,6 +578,29 @@ class BasisDecomposedPotentialNet(nn.Module):
         self.T = float(year_max - year_min) if year_max > year_min else 1.0
         self.num_basis = int(num_basis)
         self.time_fourier_K = int(time_fourier_K)
+
+        # --- NMF アンカリング（Φ-NBD）---
+        # node_theme_W: (num_nodes, K) 各ノードの NMF テーマ荷重（行正規化、
+        #   左パーティション=発明者のみ非ゼロ、右=CPC は 0）。
+        # 与えられた場合、基底 k に「テーマ k 重心 μ_k を底とするガウス井戸」を加え、
+        #   勾配流がテーマ k のアクティブ時に μ_k へ引き寄せられる解釈を与える。
+        self.use_anchor = node_theme_W is not None
+        self.anchor_weight = float(anchor_weight)
+        self.anchor_momentum = float(anchor_momentum)
+        if self.use_anchor:
+            W = node_theme_W.float()
+            if W.dim() != 2 or W.size(1) != self.num_basis:
+                raise ValueError(
+                    f"node_theme_W must be (num_nodes, {self.num_basis}), got {tuple(W.shape)}"
+                )
+            self.register_buffer("node_theme_W", W)
+            self.register_buffer(
+                "theme_centers", torch.zeros(self.num_basis, self.latent_dim)
+            )
+            self.register_buffer(
+                "centers_initialized", torch.zeros(1, dtype=torch.bool)
+            )
+            self.log_anchor_sigma = nn.Parameter(torch.tensor(0.0))
 
         # --- 空間側: Φ_basis(z) ∈ ℝᴷ ---
         # RFF でz をランダム特徴に写像してから K 次元に圧縮
@@ -627,6 +653,14 @@ class BasisDecomposedPotentialNet(nn.Module):
         # 空間側: (N, K)
         phi_basis = self.basis_net(self._rff(z))
 
+        # NMF アンカー: 基底 k に μ_k 中心のガウス井戸を加える（解釈性）
+        if self.use_anchor and bool(self.centers_initialized.item()):
+            diff = z.unsqueeze(1) - self.theme_centers.unsqueeze(0)  # (N, K, D)
+            d2 = (diff ** 2).sum(dim=-1)                              # (N, K)
+            sigma2 = (self.log_anchor_sigma.exp() ** 2).clamp_min(1e-6)
+            well = -torch.exp(-0.5 * d2 / sigma2)                     # (N, K) ∈ [-1, 0]
+            phi_basis = phi_basis + self.anchor_weight * well
+
         # 時間側: (K,) → (1, K) → (N, K) にブロードキャスト
         t = t_scalar.squeeze()
         t_emb = self._t_emb(t)                         # (2K,)
@@ -639,6 +673,27 @@ class BasisDecomposedPotentialNet(nn.Module):
         # スカラースケール（exp で正値保証、初期値≈1）
         phi = phi * torch.exp(self.log_scale)
         return phi
+
+    @torch.no_grad()
+    def update_from_mu(self, mu: torch.Tensor, mask: "torch.Tensor | None" = None) -> None:
+        """テーマ重心 μ_k を EMA 更新。
+
+        μ_k = Σ_i W[i,k]·mu[i] / Σ_i W[i,k]   (active ノードのみ)
+        訓練ループ（train_one_epoch）の update_from_mu フックから毎遷移で呼ばれる。
+        """
+        if not self.use_anchor:
+            return
+        W = self.node_theme_W  # (num_nodes, K)
+        if mask is not None:
+            W = W * mask.to(W.dtype).unsqueeze(1)
+        denom = W.sum(dim=0).clamp_min(1e-6)            # (K,)
+        centers = (W.t() @ mu.to(W.dtype)) / denom.unsqueeze(1)  # (K, D)
+        if not bool(self.centers_initialized.item()):
+            self.theme_centers.copy_(centers)
+            self.centers_initialized.fill_(True)
+        else:
+            m = self.anchor_momentum
+            self.theme_centers.mul_(1.0 - m).add_(centers, alpha=m)
 
     def get_alpha(self, calendar_year: float, device: str = "cpu") -> torch.Tensor:
         """
@@ -746,10 +801,16 @@ class GradientNeuralODEPredictorBasis(nn.Module):
         year_max: int,
         num_basis: int = 8,
         time_fourier_K: int = 8,
+        node_theme_W: "torch.Tensor | None" = None,
+        anchor_weight: float = 1.0,
+        anchor_momentum: float = 0.1,
     ):
         super().__init__()
         self.potential_net = BasisDecomposedPotentialNet(
-            latent_dim, hidden_dim, year_min, year_max, num_basis, time_fourier_K
+            latent_dim, hidden_dim, year_min, year_max, num_basis, time_fourier_K,
+            node_theme_W=node_theme_W,
+            anchor_weight=anchor_weight,
+            anchor_momentum=anchor_momentum,
         )
         self.ode_func = GradientODEFuncBasis(self.potential_net)
         self.year_min = int(year_min)

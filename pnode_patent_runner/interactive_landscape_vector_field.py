@@ -292,6 +292,218 @@ def compute_vector_field_for_plotly(
     }
 
 
+def compute_dual_force_vector_field_for_plotly(
+    model: torch.nn.Module,
+    data_t: Any,
+    device: torch.device,
+    z_np: np.ndarray,
+    margin: float = 0.5,
+    resolution: int = 42,
+    quiver_stride: int = 3,
+    quiver_length_mult: float = 1.75,
+    n_mag_bins: int = 5,
+    *,
+    phi_heatmap_style: str = "valley_red_peak_blue",
+    arrow_style: str = "gray_grid",
+) -> Dict[str, Any]:
+    """
+    Dual-Force P-NODE: グリッド上で ``dz/dτ = v(z)``（``DualForcePotentialODEFunc``）を評価し、
+    ヒート・等高線用スカラーは **|v|**、短矢印は **v 方向**（スカラーポテンシャル −∇Φ は用いない）。
+
+    ``data_t`` から ``set_topic_info`` に渡す（当該年のトピック座標とトレンド）を用いる。
+    """
+    x_min, x_max = float(z_np[:, 0].min()) - margin, float(z_np[:, 0].max()) + margin
+    y_min, y_max = float(z_np[:, 1].min()) - margin, float(z_np[:, 1].max()) + margin
+
+    ode_f = model.temporal_predictor.ode_func
+    num_corps = int(getattr(model, "num_corps", 0))
+    data_y = data_t.to(device, non_blocking=True)
+    p_j = data_y.x[num_corps:]
+    ode_f.eval()
+    tplus = data_y.topic_trend_plus
+    tminus = data_y.topic_trend_minus
+    dplus = tplus if tplus.dim() > 1 else tplus.unsqueeze(-1)
+    dminus = tminus if tminus.dim() > 1 else tminus.unsqueeze(-1)
+    ode_f.set_topic_info(
+        p_j,
+        dplus.to(device=p_j.device, dtype=p_j.dtype),
+        dminus.to(device=p_j.device, dtype=p_j.dtype),
+    )
+
+    x = torch.linspace(x_min, x_max, resolution, device=device, dtype=torch.float32)
+    yg = torch.linspace(y_min, y_max, resolution, device=device, dtype=torch.float32)
+    X, Y = torch.meshgrid(x, yg, indexing="ij")
+    grid = torch.stack([X.flatten(), Y.flatten()], dim=1)
+    t0 = torch.tensor(0.0, device=device, dtype=grid.dtype)
+
+    with torch.no_grad():
+        v_flat = ode_f(t0, grid)
+    v_flat = v_flat.to(torch.float32)
+    vx = v_flat[:, 0].view(resolution, resolution)
+    vy = v_flat[:, 1].view(resolution, resolution)
+
+    Xn = X.detach().cpu().numpy()
+    Yn = Y.detach().cpu().numpy()
+    vx_np = np.asarray(vx.cpu().numpy(), dtype=np.float64)
+    vy_np = np.asarray(vy.cpu().numpy(), dtype=np.float64)
+    mag = np.sqrt(vx_np * vx_np + vy_np * vy_np)
+    Zn = mag
+
+    if phi_heatmap_style == "valley_red_peak_blue":
+        z_lo = float(Zn.min())
+        z_hi = float(Zn.max())
+        if z_hi > z_lo + 1e-12:
+            Zn = 2.0 * (Zn - z_lo) / (z_hi - z_lo) - 1.0
+        else:
+            Zn = np.zeros_like(Zn)
+
+    ny, nx = Xn.shape
+    z1_coords = Xn[:, 0].tolist()
+    z2_coords = Yn[0, :].tolist()
+    z_heatmap = Zn.T.tolist()
+    u = vx_np
+    v = vy_np
+    if nx > 1 and ny > 1:
+        dz1 = abs(float(Xn[1, 0] - Xn[0, 0]))
+        dz2 = abs(float(Yn[0, 1] - Yn[0, 0]))
+        cell = (dz1 + dz2) / 2.0
+    else:
+        cell = 1.0
+    z_contour: List[List[float]] = [[float(Zn[i, j]) for i in range(ny)] for j in range(nx)]
+    mags = np.sqrt(u * u + v * v)
+    stride = max(1, int(quiver_stride))
+    arrow_len = 0.36 * cell * float(quiver_length_mult)
+
+    arrow_bins: List[Dict[str, Any]] = []
+    n_bins = 1
+
+    if arrow_style == "gray_grid":
+        xl_all: List[Any] = []
+        yl_all: List[Any] = []
+        for i in range(0, ny, stride):
+            for j in range(0, nx, stride):
+                x0 = float(Xn[i, j])
+                y0 = float(Yn[i, j])
+                ui = float(u[i, j])
+                vi = float(v[i, j])
+                m = float(np.hypot(ui, vi))
+                if m < 1e-14:
+                    continue
+                ux = ui / m
+                uy = vi / m
+                x1 = x0 + ux * arrow_len
+                y1 = y0 + uy * arrow_len
+                xl_all.extend([x0, x1, None])
+                yl_all.extend([y0, y1, None])
+        if xl_all:
+            arrow_bins.append(
+                {
+                    "xl": xl_all,
+                    "yl": yl_all,
+                    "color": "rgba(145,148,158,0.88)",
+                    "name": "v",
+                }
+            )
+    else:
+        n_bins = max(2, min(8, int(n_mag_bins)))
+        sampled = [
+            float(mags[i, j])
+            for i in range(0, ny, stride)
+            for j in range(0, nx, stride)
+            if float(mags[i, j]) > 1e-14
+        ]
+        if not sampled:
+            sampled = [0.0]
+        qs = list(np.quantile(sampled, np.linspace(0.0, 1.0, n_bins + 1)))
+        qs[0] = 0.0
+        qs[-1] = qs[-1] + 1e-9
+
+        colors = (_ARROW_COLORS * (1 + n_bins // len(_ARROW_COLORS)))[:n_bins]
+        labels = (_ARROW_LABELS * (1 + n_bins // len(_ARROW_LABELS)))[:n_bins]
+
+        bins_xl: List[List[Any]] = [[] for _ in range(n_bins)]
+        bins_yl: List[List[Any]] = [[] for _ in range(n_bins)]
+
+        for i in range(0, ny, stride):
+            for j in range(0, nx, stride):
+                x0 = float(Xn[i, j])
+                y0 = float(Yn[i, j])
+                ui = float(u[i, j])
+                vi = float(v[i, j])
+                m = float(np.hypot(ui, vi))
+                if m < 1e-14:
+                    continue
+                ux = ui / m
+                uy = vi / m
+                x1 = x0 + ux * arrow_len
+                y1 = y0 + uy * arrow_len
+                bi = int(np.searchsorted(qs, m, side="right") - 1)
+                bi = min(n_bins - 1, max(0, bi))
+                bins_xl[bi].extend([x0, x1, None])
+                bins_yl[bi].extend([y0, y1, None])
+
+        for b in range(n_bins):
+            if not bins_xl[b]:
+                continue
+            arrow_bins.append(
+                {
+                    "xl": bins_xl[b],
+                    "yl": bins_yl[b],
+                    "color": colors[b],
+                    "name": f"v（{labels[b]}）",
+                }
+            )
+
+    meta: Dict[str, Any] = {
+        "resolution": resolution,
+        "margin": margin,
+        "quiverStride": stride,
+        "quiverLengthMult": float(quiver_length_mult),
+        "nMagBins": n_bins,
+        "phiHeatmapStyle": phi_heatmap_style,
+        "arrowStyle": arrow_style,
+        "fieldKind": "dual_force",
+        "fieldScalarName": "|v|",
+        "contourName": "|v| 等高線",
+        "heatmapColorbarTitle": "|v|（−1〜1, 低速＝赤・高速＝青）",
+    }
+    if phi_heatmap_style == "valley_red_peak_blue":
+        meta["phiDisplayRange"] = [-1.0, 1.0]
+
+    return {
+        "heatmap": {"x": z1_coords, "y": z2_coords, "z": z_heatmap},
+        "phiContour": {"x": z1_coords, "y": z2_coords, "z": z_contour},
+        "arrowBins": arrow_bins,
+        "meta": meta,
+    }
+
+
+@torch.no_grad()
+def compute_dual_force_node_speeds(
+    model: torch.nn.Module,
+    data_t: Any,
+    device: torch.device,
+    z: torch.Tensor,
+) -> torch.Tensor:
+    """各潜在点での ``|v(z)|``（Dual-Force ODE ベクトル場の大きさ）。"""
+    data_y = data_t.to(device, non_blocking=True)
+    n = int(getattr(model, "num_corps", 0))
+    p_j = data_y.x[n:]
+    tplus = data_y.topic_trend_plus
+    tminus = data_y.topic_trend_minus
+    dplus = tplus if tplus.dim() > 1 else tplus.unsqueeze(-1)
+    dminus = tminus if tminus.dim() > 1 else tminus.unsqueeze(-1)
+    ode_f = model.temporal_predictor.ode_func
+    ode_f.set_topic_info(
+        p_j,
+        dplus.to(device=p_j.device, dtype=p_j.dtype),
+        dminus.to(device=p_j.device, dtype=p_j.dtype),
+    )
+    t0 = torch.tensor(0.0, device=device, dtype=z.dtype)
+    v = ode_f(t0, z.to(device))
+    return v.norm(dim=-1)
+
+
 def compute_vector_field_density_potential_for_plotly(
     z_np: np.ndarray,
     patent_xy: np.ndarray,

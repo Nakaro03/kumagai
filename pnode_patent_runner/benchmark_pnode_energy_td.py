@@ -331,10 +331,14 @@ class PNodeEnergyTDBasis(nn.Module):
         latent_dim: int = 2,
         initial_corp_vectors=None,
         link_score_mode: str = "distance",
+        cosine_logit_scale: float = 5.0,
         year_min: int = 2010,
         year_max: int = 2020,
         num_basis: int = 8,
         time_fourier_K: int = 8,
+        node_theme_W=None,
+        anchor_weight: float = 1.0,
+        anchor_momentum: float = 0.1,
     ):
         super().__init__()
         self.num_nodes = num_nodes
@@ -343,6 +347,7 @@ class PNodeEnergyTDBasis(nn.Module):
         if link_score_mode not in ("distance", "cosine"):
             raise ValueError("link_score_mode must be 'distance' or 'cosine'")
         self.link_score_mode = link_score_mode
+        self.cosine_logit_scale = float(cosine_logit_scale)
         self.year_min = int(year_min)
         self.year_max = int(year_max)
         self.num_basis = int(num_basis)
@@ -360,7 +365,10 @@ class PNodeEnergyTDBasis(nn.Module):
             GradientNeuralODEPredictorBasis,
         )
         self.temporal_predictor = GradientNeuralODEPredictorBasis(
-            latent_dim, hidden_dim, year_min, year_max, num_basis, time_fourier_K
+            latent_dim, hidden_dim, year_min, year_max, num_basis, time_fourier_K,
+            node_theme_W=node_theme_W,
+            anchor_weight=anchor_weight,
+            anchor_momentum=anchor_momentum,
         )
 
         # ボルツマン型パラメータ

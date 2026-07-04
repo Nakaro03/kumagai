@@ -5,6 +5,7 @@ UnifiedVGAE（CoPE-VGAE）用の損失・負例サンプリング・短い学習
 """
 from __future__ import annotations
 
+import math
 from typing import Any, Dict, List, Optional, Set, Tuple
 
 import numpy as np
@@ -22,6 +23,24 @@ README_DEFAULT_TRAJECTORY_WEIGHT = 0.05
 README_DEFAULT_NUM_NEG_RECON = 800
 README_DEFAULT_NUM_NEG_FUTURE = 400
 README_DEFAULT_DENSITY_ALIGN_WEIGHT = 0.0
+# トレンド教師損失: Φ(z_topic_j) ≈ -g_j(t)  (成長率が高いトピック = 谷底)
+README_DEFAULT_TREND_WEIGHT = 0.0
+# トレンド損失タイプ: 'mse' (従来) / 'listnet' (スケール不変, ranking 直接最適化)
+#                    / 'approxndcg' (X2: NDCG 直接最適化 = top-K 精度向上)
+README_DEFAULT_TREND_LOSS_TYPE = "mse"
+# ListNet / ApproxNDCG の温度パラメータ
+README_DEFAULT_TREND_LISTNET_TEMP = 0.5
+# トレンド損失の curriculum: 0=ramp なし、N>0 で N epoch かけて 0→λ_trend へ ramp
+README_DEFAULT_TREND_WARMUP_EPOCHS = 0
+# X1: Anchor Loss — Φ_topics の span (max-min) を target_span 以上に保つペナルティ
+#     0 で無効。1.0 で「Φ landscape のレンジを 1.0 以上に保つ」ことを強制。
+README_DEFAULT_TREND_SPAN_WEIGHT = 0.0
+README_DEFAULT_TREND_SPAN_TARGET = 1.0
+# X3 (PI-SDE 流): Hamilton-Jacobi 正則化 |∂_t Φ - ½‖∇_z Φ‖²|
+#   参照: Jiang & Wan 2024, Bioinformatics ECCB2024 (btae400)
+#   PI-SDE 論文の核心: HJ 方程式を満たす Φ が解釈可能な quasipotential になる
+#   0 で無効。0.05 程度を推奨。
+README_DEFAULT_HJ_WEIGHT = 0.0
 # pnode_explicit: 左パーティションの A(z)=exp(-Phi) を次数ベース正規化目標に近づける
 README_DEFAULT_ATTENTION_GROUND_WEIGHT = 0.5
 # Φ 正則の形（l2=従来 0.01·mean(Φ²) 相当の中身）
@@ -29,6 +48,8 @@ README_DEFAULT_POTENTIAL_REG_MODE = "l2"
 # 軌道損失: 差分の基準 z 再パラム vs μ、損失形、||∇Φ|| 下限ペナ
 README_DEFAULT_TRAJECTORY_DELTA_SOURCE = "z"
 README_DEFAULT_TRAJECTORY_LOSS_TYPE = "cosine"
+# InfoNCE 軌道損失の温度パラメータ（trajectory_loss_type="infonce" 時に使用）
+README_DEFAULT_INFONCE_TEMPERATURE = 0.1
 README_DEFAULT_TRAJECTORY_GRAD_FLOOR = 0.0
 README_DEFAULT_TRAJECTORY_GRAD_FLOOR_WEIGHT = 0.0
 # L_pot 内部スケール（従来互換・TD 損失からも参照可）
@@ -119,6 +140,14 @@ def compute_loss_standardized(
     trajectory_loss_type: str = README_DEFAULT_TRAJECTORY_LOSS_TYPE,
     trajectory_grad_floor: float = README_DEFAULT_TRAJECTORY_GRAD_FLOOR,
     trajectory_grad_floor_weight: float = README_DEFAULT_TRAJECTORY_GRAD_FLOOR_WEIGHT,
+    infonce_temperature: float = README_DEFAULT_INFONCE_TEMPERATURE,
+    trend_weight: float = README_DEFAULT_TREND_WEIGHT,
+    topic_growth_rates: Optional[torch.Tensor] = None,
+    trend_loss_type: str = README_DEFAULT_TREND_LOSS_TYPE,
+    trend_listnet_temp: float = README_DEFAULT_TREND_LISTNET_TEMP,
+    trend_span_weight: float = README_DEFAULT_TREND_SPAN_WEIGHT,
+    trend_span_target: float = README_DEFAULT_TREND_SPAN_TARGET,
+    hj_weight: float = README_DEFAULT_HJ_WEIGHT,
 ) -> Tuple[torch.Tensor, Dict[str, float]]:
     device = data_t.x.device
 
@@ -172,6 +201,7 @@ def compute_loss_standardized(
     trajectory_loss = torch.tensor(0.0, device=device)
     grad_phi_l2_for_breakdown = 0.0
     has_potential = hasattr(model.temporal_predictor, "potential_net")
+    td_phi_basis = bool(getattr(model, "pnode_energy_td_basis", False))
     td_phi = bool(getattr(model, "pnode_energy_td", False)) or (
         getattr(model, "time_dependent_potential", False)
         and getattr(model, "variant", None) == "pnode"
@@ -179,7 +209,15 @@ def compute_loss_standardized(
 
     if has_potential:
         pn = model.temporal_predictor.potential_net
-        if td_phi:
+        if td_phi_basis:
+            # 基底分解 Φ(z,t): t は全ノード共通の暦年オフセット（0-dim）
+            if y0 is None:
+                raise ValueError("y0 is required for PNodeEnergyTDBasis loss")
+            t_off = torch.tensor(
+                float(y0) - float(pn.year_min), dtype=torch.float32, device=device
+            )
+            phi_z = pn(z_t, t_off)
+        elif td_phi:
             if y0 is None:
                 raise ValueError("y0 is required for time-dependent P-NODE / PNodeEnergyTD loss")
             yi0 = pn.year_tensor(int(y0), z_t.size(0), device)
@@ -242,10 +280,32 @@ def compute_loss_standardized(
                 trajectory_loss = F.smooth_l1_loss(
                     du, vu, beta=0.1, reduction="mean"
                 )
+            elif tls in ("infonce", "info_nce", "nce"):
+                # InfoNCE 軌道損失:
+                #   cosine 損失は方向のみ・負例なし → 弱い監督信号
+                #   InfoNCE は「同一ノードの次時点埋め込みが最も近い」を対照的に学習
+                #   sim(z_pred_i, μ_{t+1,i}) が全 j≠i の sim(z_pred_i, μ_{t+1,j}) より高い
+                #   → 誤ったノードへ向かう予測に強いペナルティ
+                #   max_nodes でサブサンプリングして O(M²) メモリを制御
+                max_nodes = 512
+                am = data_t.active_mask
+                am_idx = am.nonzero(as_tuple=False).squeeze(1)
+                if am_idx.numel() > max_nodes:
+                    perm = torch.randperm(am_idx.numel(), device=device)[:max_nodes]
+                    am_idx = am_idx[perm]
+                z_sub = v_theory[am_idx]           # (M, D) — use gradient direction as anchor
+                mu_sub = mu_t1_actual[am_idx].detach()  # (M, D)
+                # 予測された z_{t+1} を正例として使う (z_pred 全体が利用可能な場合)
+                z_sub_norm  = F.normalize(z_sub,  dim=1, eps=1e-8)
+                mu_sub_norm = F.normalize(mu_sub, dim=1, eps=1e-8)
+                tau = max(float(infonce_temperature), 1e-4)
+                logits = z_sub_norm @ mu_sub_norm.t() / tau  # (M, M)
+                labels = torch.arange(logits.size(0), device=device)
+                trajectory_loss = F.cross_entropy(logits, labels)
             else:
                 raise ValueError(
                     f"unknown trajectory_loss_type: {trajectory_loss_type!r} "
-                    f"(use cosine, smooth1mcos, huber_vec)"
+                    f"(use cosine, smooth1mcos, huber_vec, infonce)"
                 )
             tgf = float(trajectory_grad_floor)
             tgw = float(trajectory_grad_floor_weight)
@@ -281,7 +341,11 @@ def compute_loss_standardized(
                     A_pred[:n_left][left_sel], t_tgt[left_sel]
                 )
 
-    if getattr(model, "pnode_energy_td", False):
+    if getattr(model, "pnode_energy_td_basis", False):
+        if y0 is None:
+            raise ValueError("y0 is required for PNodeEnergyTDBasis predict_future")
+        z_t1_pred = model.predict_future(z_history_for_prediction, int(y0))
+    elif getattr(model, "pnode_energy_td", False):
         if y0 is None:
             raise ValueError("y0 is required for PNodeEnergyTD predict_future")
         z_t1_pred = model.predict_future(z_history_for_prediction, int(y0))
@@ -347,6 +411,115 @@ def compute_loss_standardized(
     weighted_density_align = density_align_weight * density_align_loss
     weighted_attention_ground = attention_ground_weight * attention_ground_loss
 
+    # ── L_trend: 成長トピック = 谷底（低 Φ）、衰退トピック = 山（高 Φ）──────────
+    # Φ(z_topic_j) ≈ -g_j_normalized
+    #   g_j > 0 (成長中)  → 目標 Φ < 0 方向 → 谷底
+    #   g_j < 0 (衰退中)  → 目標 Φ > 0 方向 → 山
+    trend_loss = torch.tensor(0.0, device=device)
+    if trend_weight > 0 and topic_growth_rates is not None and has_potential:
+        num_topics = z_t.shape[0] - num_corps
+        if num_topics > 0:
+            pn_tr = model.temporal_predictor.potential_net
+            z_topics_raw = z_t[num_corps:num_corps + num_topics]
+            # Architecture A: TrendAdapter (z.detach() + linear + per-topic bias)
+            #   L_trend の勾配は encoder ではなく adapter のみに流れる。
+            #   encoder は L_recon + L_future に集中し、adapter が trend 空間を学習。
+            if hasattr(model, "apply_trend_adapter") and getattr(model, "use_trend_adapter", False):
+                z_topics = model.apply_trend_adapter(z_topics_raw)
+            else:
+                z_topics = z_topics_raw
+            phi_topics = pn_tr(z_topics)
+            if phi_topics.dim() > 1:
+                phi_topics = phi_topics.squeeze(-1)
+            g = topic_growth_rates.to(device=device, dtype=phi_topics.dtype)
+            if g.shape[0] != num_topics:
+                g = g[:num_topics]
+            loss_type = str(trend_loss_type).lower()
+            if loss_type == "approxndcg":
+                # X2: ApproxNDCG (Qin+ 2010, Bruch+ 2019).
+                #   π̂_j = 1 + Σ_{k≠j} σ((Φ_j − Φ_k) / T)   (低 Φ = 上位 rank)
+                #   gain_j = max(g_j, 0)                    (relevance = 正の成長率)
+                #   DCG  = Σ_j gain_j / log₂(1 + π̂_j)
+                #   IDCG = sort(gain) descending で同じ式
+                #   L = -DCG / IDCG  (NDCG 最大化)
+                T = max(float(trend_listnet_temp), 1e-3)
+                # smooth rank: π̂_j (低 Φ = 上位 = 小さい rank)
+                diff = phi_topics.unsqueeze(0) - phi_topics.unsqueeze(1)  # (n, n)
+                P = torch.sigmoid(diff / T)                                # (n, n)
+                ranks = 1.0 + P.sum(dim=0) - 0.5    # 自分自身の σ(0)=0.5 を補正
+                gain = torch.clamp(g, min=0.0)
+                discount = torch.log2(1.0 + ranks + 1e-10)
+                dcg = (gain / discount).sum()
+                # IDCG: 理想ランキング (gain 降順 → rank=1,2,3,...)
+                gain_sorted, _ = torch.sort(gain, descending=True)
+                ideal_ranks = torch.arange(
+                    1, gain_sorted.numel() + 1, device=device, dtype=phi_topics.dtype
+                )
+                idcg = (gain_sorted / torch.log2(1.0 + ideal_ranks)).sum()
+                ndcg = dcg / (idcg + 1e-10)
+                trend_loss = 1.0 - ndcg                  # 最大化なので 1-ndcg を最小化
+            elif loss_type == "listnet":
+                # ListNet (Cao+ 2007): scale-invariant ranking loss.
+                #   target distribution = softmax(g / T)        (高 g  = 高確率)
+                #   pred   distribution = softmax(-Φ / T)        (低 Φ = 高確率, 谷=成長予測)
+                #   L = − Σ_j P_target(j) · log P_pred(j)
+                T = max(float(trend_listnet_temp), 1e-3)
+                p_target = F.softmax(g / T, dim=-1)
+                logp_pred = F.log_softmax(-phi_topics / T, dim=-1)
+                trend_loss = -(p_target * logp_pred).sum()
+            else:
+                # MSE (従来): スケール感応で大規模ミスマッチを起こす
+                g_std = g.std() + 1e-8
+                g_norm = (g - g.mean()) / g_std
+                phi_centered = phi_topics - phi_topics.mean()
+                trend_loss = F.mse_loss(phi_centered, -g_norm)
+
+            # X1: Anchor Loss — Φ_topics の span (max-min) を target_span 以上に保つ
+            #   ListNet/ApproxNDCG は scale-invariant なので Φ がゼロ近傍に収束しがち
+            #   span を強制すると勾配流 dz/dt = -∇Φ が動作可能な振幅を保てる
+            if float(trend_span_weight) > 0.0 and phi_topics.numel() >= 2:
+                phi_span = phi_topics.max() - phi_topics.min()
+                span_loss = F.relu(float(trend_span_target) - phi_span)
+                trend_loss = trend_loss + float(trend_span_weight) * span_loss
+    weighted_trend = trend_weight * trend_loss
+
+    # ── X3 (PI-SDE 流) Hamilton-Jacobi 正則化 ───────────────────────────────
+    #   |∂_t Φ(z, t) − ½ ‖∇_z Φ(z, t)‖²|² を最小化する。
+    #   参照: Jiang & Wan 2024 (Bioinformatics btae400, ECCB2024)
+    #   PC-PNODE では Φ_t(z) = ψ(z) − w_ρ log ρ̂_t(z) − w_Δ Δ̂_t(z) が時間依存。
+    #   ∂_t Φ : 同じ z で年 t と t+1 の Φ を比べる有限差分
+    #   ∇_z Φ : autograd で取得
+    hj_loss = torch.tensor(0.0, device=device)
+    if float(hj_weight) > 0.0 and has_potential:
+        pn_hj = getattr(model.temporal_predictor, "potential_net", None)
+        # PI-SDE 由来の超簡素版: Lipschitz 制約 (∇_z Φ の上界制御)
+        # 中心差分で ∇_z Φ ≈ (Φ(z+ε) − Φ(z−ε)) / (2ε) を計算し、その L2 ノルムをペナルティ化
+        # 完全な HJ ではないが、PI-SDE の HJ 制約と同方向の効果 (Φ を滑らかにする)
+        # set_population の autograd 衝突を完全に回避するため、∂_t Φ 項は省略
+        if pn_hj is not None:
+            try:
+                n_sample = min(16, num_corps, z_t.shape[0])
+                if n_sample > 4:
+                    idx = torch.randperm(z_t.shape[0], device=device)[:n_sample]
+                    z_sample = z_t[idx]                                       # (n, D), z_t に勾配あり
+                    D = z_sample.shape[-1]
+                    eps = 1e-2
+                    # 中心差分 (各次元ごと)
+                    grad_components = []
+                    for d in range(D):
+                        e_d = torch.zeros_like(z_sample)
+                        e_d[:, d] = eps
+                        phi_plus  = pn_hj(z_sample + e_d).squeeze(-1)
+                        phi_minus = pn_hj(z_sample - e_d).squeeze(-1)
+                        grad_components.append((phi_plus - phi_minus) / (2 * eps))
+                    grad_z = torch.stack(grad_components, dim=-1)
+                    grad_norm_sq = (grad_z ** 2).sum(dim=-1)
+                    # PI-SDE 流: ½‖∇Φ‖² を最小化 (Hamilton 関数の運動エネルギー項)
+                    hj_loss = 0.5 * grad_norm_sq.mean()
+            except Exception:
+                hj_loss = torch.tensor(0.0, device=device)
+    weighted_hj = float(hj_weight) * hj_loss
+
     total_loss = (
         recon_loss
         + weighted_kl
@@ -356,6 +529,8 @@ def compute_loss_standardized(
         + weighted_trajectory
         + weighted_density_align
         + weighted_attention_ground
+        + weighted_trend
+        + weighted_hj
     )
 
     breakdown = {
@@ -368,6 +543,7 @@ def compute_loss_standardized(
         "trajectory": float(weighted_trajectory.item()),
         "density_align": float(weighted_density_align.item()),
         "attention_ground": float(weighted_attention_ground.item()),
+        "trend": float(weighted_trend.item()),
         "grad_phi_l2": float(grad_phi_l2_for_breakdown),
     }
     return total_loss, breakdown
@@ -414,7 +590,7 @@ def rollout_z_pred_multistep(
         raise ValueError("rollout exceeds year range")
     variant = getattr(model, "variant", None)
 
-    if getattr(model, "pnode_energy_td", False):
+    if getattr(model, "pnode_energy_td_basis", False) or getattr(model, "pnode_energy_td", False):
         z = z_hist[-1]
         for k in range(n_steps):
             cal = int(years_sorted[idx_start + k])
@@ -612,6 +788,7 @@ def train_one_epoch(
     optimizer: torch.optim.Optimizer,
     device: torch.device,
     loss_kw: Dict[str, Any],
+    topic_growth_by_year: Optional[Dict[int, torch.Tensor]] = None,
 ) -> Dict[str, float]:
     model.train()
     years = sorted(graphs.keys())
@@ -628,6 +805,7 @@ def train_one_epoch(
             "trajectory",
             "density_align",
             "attention_ground",
+            "trend",
             "grad_phi_l2",
         )
     }
@@ -664,6 +842,10 @@ def train_one_epoch(
                 active_mask_prev=am_prev,
             )
         optimizer.zero_grad()
+        growth_t: Optional[torch.Tensor] = None
+        if topic_growth_by_year is not None:
+            # y0→y1 の成長率：「今年 y0 の時点で来年 y1 が伸びるトピック = 谷底」
+            growth_t = topic_growth_by_year.get(y1)
         loss, br = compute_loss_standardized(
             model,
             data_t,
@@ -674,6 +856,7 @@ def train_one_epoch(
             precomputed_z_mu_logvar=(z_t, mu_t, logvar_t),
             y0=y0,
             y1=y1,
+            topic_growth_rates=growth_t,
             **loss_kw,
         )
         loss.backward()
@@ -961,6 +1144,14 @@ def train_model_improved(
     trajectory_loss_type: str = README_DEFAULT_TRAJECTORY_LOSS_TYPE,
     trajectory_grad_floor: float = README_DEFAULT_TRAJECTORY_GRAD_FLOOR,
     trajectory_grad_floor_weight: float = README_DEFAULT_TRAJECTORY_GRAD_FLOOR_WEIGHT,
+    trend_weight: float = README_DEFAULT_TREND_WEIGHT,
+    topic_growth_by_year: Optional[Dict[int, torch.Tensor]] = None,
+    trend_loss_type: str = README_DEFAULT_TREND_LOSS_TYPE,
+    trend_listnet_temp: float = README_DEFAULT_TREND_LISTNET_TEMP,
+    trend_warmup_epochs: int = README_DEFAULT_TREND_WARMUP_EPOCHS,
+    trend_span_weight: float = README_DEFAULT_TREND_SPAN_WEIGHT,
+    trend_span_target: float = README_DEFAULT_TREND_SPAN_TARGET,
+    hj_weight: float = README_DEFAULT_HJ_WEIGHT,
 ) -> Tuple[torch.nn.Module, float, float, Dict[str, Any]]:
     """
     README_COPE.md の損失既定で `train_one_epoch` を回す短い学習ループ。
@@ -983,6 +1174,11 @@ def train_model_improved(
         trajectory_loss_type=str(trajectory_loss_type),
         trajectory_grad_floor=float(trajectory_grad_floor),
         trajectory_grad_floor_weight=float(trajectory_grad_floor_weight),
+        trend_loss_type=str(trend_loss_type),
+        trend_listnet_temp=float(trend_listnet_temp),
+        trend_span_weight=float(trend_span_weight),
+        trend_span_target=float(trend_span_target),
+        hj_weight=float(hj_weight),
     )
     history: Dict[str, Any] = {"loss": [], "val_auc": []}
     _comp_keys = (
@@ -994,6 +1190,7 @@ def train_model_improved(
         "trajectory",
         "density_align",
         "attention_ground",
+        "trend",
         "grad_phi_l2",
     )
     history["train_components"] = {k: [] for k in _comp_keys}
@@ -1001,13 +1198,23 @@ def train_model_improved(
     best_auc = 0.0
     for ep in range(num_epochs):
         r = loss_aux_ramp_factor(ep, int(loss_aux_warmup_epochs))
+        # F: trend_weight に対する独立 curriculum
+        #   trend_warmup_epochs > 0 のとき, trend_weight を 0 → λ_max へ sigmoid ramp。
+        #   学習初期は L_recon + L_future で z 配置を安定化し、後半に L_trend を導入。
+        if int(trend_warmup_epochs) > 0:
+            mid = float(trend_warmup_epochs)
+            r_trend = float(1.0 / (1.0 + math.exp(-(ep - mid) / max(mid * 0.25, 1.0))))
+        else:
+            r_trend = r  # 従来挙動: 全副次損失と同じランプ
         loss_kw: Dict[str, Any] = {
             **loss_kw_base,
             "potential_weight": float(potential_weight) * r,
             "trajectory_weight": float(trajectory_weight) * r,
+            "trend_weight": float(trend_weight) * r_trend,
         }
         tr = train_one_epoch(
-            model, graphs, num_corps, hist_edges, optimizer, device, loss_kw
+            model, graphs, num_corps, hist_edges, optimizer, device, loss_kw,
+            topic_growth_by_year=topic_growth_by_year,
         )
         last_breakdown = dict(tr)
         va = evaluate_val_auc(model, graphs, num_corps, device)
@@ -1017,6 +1224,10 @@ def train_model_improved(
             history["train_components"][k].append(float(tr.get(k, 0.0)))
         if not np.isnan(va):
             best_auc = max(best_auc, va)
+        print(
+            f"    [epoch {ep + 1}/{num_epochs}] loss={tr['total']:.4f} val_auc={va:.4f}",
+            flush=True,
+        )
     model.eval()
     if last_breakdown is not None:
         history["last_epoch_breakdown"] = last_breakdown

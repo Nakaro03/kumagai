@@ -34,9 +34,12 @@ class DualForceVGAE(nn.Module):
 
         self.encoder = SharedVGAEEncoder(input_dim, hidden_dim, latent_dim)
         self.temporal_predictor = DualForcePNODEPredictor(
-            latent_dim, hidden_dim, gamma=gamma, 
+            latent_dim, hidden_dim, gamma=gamma,
             ode_method=ode_method, ode_n_steps=ode_n_steps
         )
+        # future_link_auc_scores の履歴長・他モデル識別用
+        self.temporal_history_len = 1
+        self.variant = "dual_force"
 
     def get_node_features(self, x, node_indices=None):
         features = x.clone()
@@ -75,25 +78,18 @@ class DualForceVGAE(nn.Module):
     def decode(self, z, edge_index):
         return torch.sigmoid(self.decode_logits(z, edge_index))
 
-    def predict_future(self, z_history_list, data_t=None):
+    def predict_future(self, z_history_list, data_t=None, year_calendar_start=None):
         """
-        data_t: 現在の年のDataオブジェクト。トピック情報を含む。
+        data_t: 遷移元の年の Data（`topic_trend_*` を ODE 場に渡す）。多段ロールアウトでは
+        各ステップの年の Data を渡す。
         """
+        z = z_history_list[-1]
         if data_t is not None:
-            # トピック情報をODEベクトル場にセット
-            num_authors = self.num_corps
-            # トピックの埋め込み（ノード特徴の後半部分）
-            # ここでは簡単のため、data_t.xから直接取得する
-            P_j = data_t.x[num_authors:] 
-            # もしエンコード後のトピック位置を使う場合は以下：
-            # z_t, _, _ = self.encode(data_t.x, data_t.edge_index)
-            # P_j = z_t[num_authors:]
-            
-            # トピックの勢い情報をセット
+            dtp = data_t.to(z.device, non_blocking=True)
+            p_j = dtp.x[self.num_corps :]
             self.temporal_predictor.ode_func.set_topic_info(
-                P_j.to(z_history_list[-1].device),
-                data_t.topic_trend_plus.unsqueeze(-1).to(z_history_list[-1].device),
-                data_t.topic_trend_minus.unsqueeze(-1).to(z_history_list[-1].device)
+                p_j,
+                dtp.topic_trend_plus.unsqueeze(-1),
+                dtp.topic_trend_minus.unsqueeze(-1),
             )
-            
-        return self.temporal_predictor(z_history_list[-1])
+        return self.temporal_predictor(z, self.num_corps, delta_t=1.0)

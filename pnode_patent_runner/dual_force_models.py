@@ -85,11 +85,21 @@ class DualForcePNODEPredictor(nn.Module):
         self.ode_method = ode_method
         self.ode_n_steps = ode_n_steps
 
-    def forward(self, z_current, delta_t=1.0):
-        return integrate_gradient_flow_ode(
+    def forward(self, z_current: torch.Tensor, num_authors: int, delta_t: float = 1.0) -> torch.Tensor:
+        """
+        二部グラフ上の z は [著者; トピック]。ODE は**著者行のみ**積分し、トピック行は直前 z を維持。
+        """
+        n = int(num_authors)
+        za = z_current[:n]
+        z_new_a = integrate_gradient_flow_ode(
             self.ode_func,
-            z_current,
+            za,
             float(delta_t),
             method=self.ode_method,
             n_steps=self.ode_n_steps,
         )
+        if z_current.size(0) <= n:
+            return z_new_a
+        out = z_current.clone()
+        out[:n] = z_new_a
+        return out

@@ -89,16 +89,16 @@
         <strong id="yearCurrent"></strong>
       </div>
       <div class="field-toggles">
-        <label><input type="checkbox" id="chkHeatmap" checked /> Φ ヒートマップ</label>
-        <label><input type="checkbox" id="chkContour" checked /> Φ 等高線</label>
-        <label><input type="checkbox" id="chkArrows" checked /> −∇Φ 短矢印</label>
-        <label style="color:#f87171"><input type="checkbox" id="chkNodePhiDensity" /> ノード密度×Φ（赤=低Φ集中・青=高Φ集中）</label>
-        <label><input type="checkbox" id="chkDeltaPhi" /> ΔΦ ヒートマップ (観測)</label>
-        <label><input type="checkbox" id="chkDeltaPhiNodes" /> ΔΦ ノード色分け (観測)</label>
-        <label><input type="checkbox" id="chkMoveArrows" /> 移動矢印 (前年→当年)</label>
-        <label style="color:#fbbf24"><input type="checkbox" id="chkPredDeltaPhi" /> 予測ΔΦ ヒートマップ</label>
-        <label style="color:#fbbf24"><input type="checkbox" id="chkPredDeltaPhiNodes" /> 予測ΔΦ ノード色分け</label>
-        <label style="color:#fbbf24"><input type="checkbox" id="chkPredMoveArrows" /> 予測移動矢印 (当年→翌年予測)</label>
+        <label><input type="checkbox" id="chkHeatmap" checked /> <span id="uiToggleHeat">Φ ヒートマップ</span></label>
+        <label><input type="checkbox" id="chkContour" checked /> <span id="uiToggleContour">Φ 等高線</span></label>
+        <label><input type="checkbox" id="chkArrows" checked /> <span id="uiToggleArrows">−∇Φ 短矢印</span></label>
+        <label style="color:#f87171"><input type="checkbox" id="chkNodePhiDensity" /> <span id="uiToggleNodePhiD">ノード密度×Φ（赤=低Φ集中・青=高Φ集中）</span></label>
+        <label><input type="checkbox" id="chkDeltaPhi" /> <span id="uiToggleDPhi">ΔΦ ヒートマップ (観測)</span></label>
+        <label><input type="checkbox" id="chkDeltaPhiNodes" /> <span id="uiToggleDPhiNodes">ΔΦ ノード色分け (観測)</span></label>
+        <label><input type="checkbox" id="chkMoveArrows" /> <span id="uiToggleMove">移動矢印 (前年→当年)</span></label>
+        <label style="color:#fbbf24"><input type="checkbox" id="chkPredDeltaPhi" /> <span id="uiTogglePredDPhi">予測ΔΦ ヒートマップ</span></label>
+        <label style="color:#fbbf24"><input type="checkbox" id="chkPredDeltaPhiNodes" /> <span id="uiTogglePredDPhiN">予測ΔΦ ノード色分け</span></label>
+        <label style="color:#fbbf24"><input type="checkbox" id="chkPredMoveArrows" /> <span id="uiTogglePredMove">予測移動矢印 (当年→翌年予測)</span></label>
       </div>
       <div class="field-adjustments">
         <div class="adj"><label for="rngHeatOp">ヒート透明度</label>
@@ -168,6 +168,7 @@
     legendInnerHtml: '',
     rightNodeLabel: '特許',
     leftNodeLabel: '企業',
+    nodeScalarLabel: 'Φ（ポテンシャル）',
   }, WRAP.ui || {});
   (function applyUiFromPayload() {
     const yl = document.getElementById('yearSliderLabel');
@@ -180,6 +181,22 @@
     if (leg && U.legendInnerHtml) leg.innerHTML = U.legendInnerHtml;
     const pcs = document.getElementById('patentColorSection');
     if (pcs && U.domain === 'patent') pcs.style.display = 'block';
+    function setToggleLabel(id, text) {
+      if (!text) return;
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.textContent = text;
+    }
+    setToggleLabel('uiToggleHeat', U.toggleHeat);
+    setToggleLabel('uiToggleContour', U.toggleContour);
+    setToggleLabel('uiToggleArrows', U.toggleArrows);
+    setToggleLabel('uiToggleNodePhiD', U.toggleNodePhiD);
+    setToggleLabel('uiToggleDPhi', U.toggleDPhi);
+    setToggleLabel('uiToggleDPhiNodes', U.toggleDPhiNodes);
+    setToggleLabel('uiToggleMove', U.toggleMove);
+    setToggleLabel('uiTogglePredDPhi', U.togglePredDPhi);
+    setToggleLabel('uiTogglePredDPhiN', U.togglePredDPhiN);
+    setToggleLabel('uiTogglePredMove', U.togglePredMove);
   })();
   let currentYear = String(WRAP.defaultYear);
   let colorBy = 'joint';
@@ -302,7 +319,7 @@
         html += '<dt>' + esc(titles[k] || k) + '</dt><dd>' + val + '</dd>';
       }
     });
-    if (d.phi != null) html += '<dt>Φ（ポテンシャル）</dt><dd>' + esc(Number(d.phi).toFixed(4)) + '</dd>';
+    if (d.phi != null) html += '<dt>' + esc(U.nodeScalarLabel || 'Φ（ポテンシャル）') + '</dt><dd>' + esc(Number(d.phi).toFixed(4)) + '</dd>';
     if (d.deltaPhi != null) html += '<dt>観測ΔΦ</dt><dd>' + esc(Number(d.deltaPhi).toFixed(4)) + '</dd>';
     if (d.predDeltaPhi != null) html += '<dt>予測ΔΦ</dt><dd>' + esc(Number(d.predDeltaPhi).toFixed(4)) + '</dd>';
     el.innerHTML = '<span class="detail-badge">' + esc(U.rightNodeLabel) + 'ノード</span><dl>' + html + '</dl>';
@@ -335,17 +352,19 @@
     if (!F) return out;
     const phiStyle = (F.meta && F.meta.phiHeatmapStyle) || 'default';
     const arrowMode = (F.meta && F.meta.arrowStyle) || 'magnitude';
+    const fsScalar = (F.meta && F.meta.fieldScalarName) ? String(F.meta.fieldScalarName) : 'Φ';
     const cbDark = {
-      title: { text: 'Φ', font: { color: '#b8c4d8' } }, len: 0.55, thickness: 12, x: 1.02,
+      title: { text: fsScalar, font: { color: '#b8c4d8' } }, len: 0.55, thickness: 12, x: 1.02,
       tickfont: { color: '#8a96ac' }, bgcolor: 'rgba(18,21,28,0.85)', bordercolor: 'rgba(100,115,150,0.4)',
     };
     if (showHeatmap && F.heatmap && F.heatmap.z) {
       const heatCbTitle = (F.meta && F.meta.heatmapColorbarTitle) ? String(F.meta.heatmapColorbarTitle) : '';
+      const fsName = (F.meta && F.meta.fieldScalarName) ? String(F.meta.fieldScalarName) : 'Φ';
       const hm = {
         type: 'heatmap', x: F.heatmap.x, y: F.heatmap.y, z: F.heatmap.z,
         zsmooth: 'best', opacity: heatmapOpacity, hoverinfo: 'skip', showscale: true,
         colorbar: Object.assign({}, cbDark),
-        name: 'Φ'
+        name: fsName
       };
       if (phiStyle === 'valley_red_peak_blue') {
         hm.zmin = -1;
@@ -356,22 +375,23 @@
           [1, 'rgb(72,118,220)']
         ];
         hm.reversescale = false;
-        hm.colorbar.title = { text: heatCbTitle || 'Φ（−1〜1, 谷＝赤・山＝青）', font: { color: '#b8c4d8' } };
+        hm.colorbar.title = { text: heatCbTitle || (fsName + '（−1〜1, 谷＝赤・山＝青）'), font: { color: '#b8c4d8' } };
       } else {
         hm.colorscale = 'Viridis';
         hm.reversescale = false;
         hm.colorbar = Object.assign({}, cbDark, {
-          title: { text: heatCbTitle || 'Φ', font: { color: '#b8c4d8' } },
+          title: { text: heatCbTitle || fsName, font: { color: '#b8c4d8' } },
         });
       }
       out.push(hm);
     }
     if (showContour && F.phiContour && F.phiContour.z && !(F.meta && F.meta.hidePrimaryContour)) {
+      const fsName2 = (F.meta && F.meta.contourName) ? String(F.meta.contourName) : 'Φ 等高線';
       const nc = Math.max(6, Math.min(40, parseInt(String(nContourLevels), 10) || 14));
       const cont = {
         type: 'contour', x: F.phiContour.x, y: F.phiContour.y, z: F.phiContour.z, ncontours: nc,
         contours: { coloring: 'lines', showlabels: false },
-        showscale: false, hoverinfo: 'skip', name: 'Φ 等高線'
+        showscale: false, hoverinfo: 'skip', name: fsName2
       };
       if (phiStyle === 'valley_red_peak_blue') {
         cont.line = { width: 1.0, color: 'rgba(150,160,185,0.38)' };
@@ -412,7 +432,7 @@
           type: 'scatter', mode: 'lines', x: bin.xl, y: bin.yl,
           line: { color: col, width: lw },
           opacity: grayGrid ? 0.68 : arrowOpacity, hoverinfo: 'skip',
-          name: grayGrid ? (idx === 0 ? '−∇Φ' : '_h') : (idx === 0 ? '−∇Φ（色＝|∇Φ|）' : '_h'),
+          name: grayGrid ? (idx === 0 ? (bin.name || '−∇Φ') : '_h') : (idx === 0 ? (bin.name || '−∇Φ（色＝|∇Φ|）') : '_h'),
           showlegend: idx === 0
         });
       });
@@ -439,13 +459,13 @@
           [1, 'rgb(50,70,230)']
         ],
         colorbar: {
-          title: { text: 'ノードΦ（赤=注目集中・青=離散）', font: { color: '#f87171', size: 11 } },
+          title: { text: ((F.meta && F.meta.nodePhiDensityColorbarTitle) ? String(F.meta.nodePhiDensityColorbarTitle) : 'ノードΦ（赤=注目集中・青=離散）'), font: { color: '#f87171', size: 11 } },
           len: 0.42, thickness: 10, x: 1.10,
           tickfont: { color: '#e88' },
           bgcolor: 'rgba(18,21,28,0.85)',
           bordercolor: 'rgba(200,80,80,0.4)',
         },
-        name: 'ノード密度×Φ'
+        name: (F.meta && F.meta.nodePhiDensityTraceName) ? String(F.meta.nodePhiDensityTraceName) : 'ノード密度×Φ'
       });
     }
     if (showDeltaPhi && F.deltaPhiHeatmap && F.deltaPhiHeatmap.z) {

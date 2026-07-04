@@ -32,6 +32,11 @@ from pnode_patent_runner.data_arxiv import (
     preprocess_arxiv_data,
     preprocess_author_topic_data,
 )
+from pnode_patent_runner.data_bipartite import (
+    build_bipartite_event_graphs,
+    calculate_initial_actor_vectors,
+    preprocess_bipartite_events,
+)
 from pnode_patent_runner.unified_vgae import METHOD_SHORT_NAME, UnifiedVGAE
 from pnode_patent_runner.unified_vgae_td import UnifiedVGAETD
 
@@ -53,17 +58,26 @@ class CopeGraphBundle:
     init_vectors: torch.Tensor
     dataframe: Optional[pd.DataFrame] = None
     right_nodes: Optional[List] = None
+    # year → topic 成長率テンソル (num_topics,)  L_trend 用
+    topic_growth_by_year: Optional[Dict[int, torch.Tensor]] = None
 
 
 BASELINE_METHOD_SPECS: Tuple[Tuple[str, str], ...] = (
     ("Static", "static"),
     ("RNN+VGAE", "rnn"),
     ("NeuralODE", "neural_ode"),
+    ("NeuralODE+GRU", "neural_ode_gru"),
     ("P-NODE", "pnode"),
     ("P-NODE-ExplicitA", "pnode_explicit"),
     ("P-NODE+Res", "pnode_residual"),
     ("PC-PNODE", "pnode_pc"),
+    ("AG-NODE", "agnode"),
     ("P-NODE-Energy-TD", "pnode_energy"),
+    ("Phi-NBD", "pnode_nbd"),
+    ("Harmonic-VGAE", "harmonic"),
+    ("Gravity-VGAE", "gravity"),
+    ("EvolveGCN-O", "evolve_gcn"),
+    ("ROLAND", "roland"),
     (METHOD_SHORT_NAME, "cope"),
 )
 
@@ -362,6 +376,32 @@ def load_author_topic_graph_bundle(
         )
 
     init_vectors = calculate_initial_author_vectors(df, num_authors, in_dim, authors)
+
+    # ── トピック成長率 (L_trend 用) ────────────────────────────────────────────
+    # g_j(year) = count(year) - count(year-1)  / (count(year-1) + 1)
+    # 年次グラフ中の各トピックの論文数を集計して差分を取る
+    topic_growth_by_year: Dict[int, torch.Tensor] = {}
+    if topic_column in df.columns and len(topics) > 0:
+        topic_to_idx = {t: i for i, t in enumerate(topics)}
+        # 年ごとのトピック出現数
+        yr_topic_counts: Dict[int, Dict[str, int]] = {}
+        for yr_val, grp in df.groupby("year"):
+            cnt: Dict[str, int] = {}
+            for t_val in grp[topic_column].dropna():
+                cnt[str(t_val)] = cnt.get(str(t_val), 0) + 1
+            yr_topic_counts[int(yr_val)] = cnt
+        sorted_years_full = sorted(yr_topic_counts.keys())
+        for i, yr in enumerate(sorted_years_full):
+            if i == 0:
+                continue  # 前年がないので growth = 0
+            prev_yr = sorted_years_full[i - 1]
+            growth = torch.zeros(len(topics), dtype=torch.float32)
+            for t_str, t_idx in topic_to_idx.items():
+                c_now  = float(yr_topic_counts[yr].get(t_str, 0))
+                c_prev = float(yr_topic_counts[prev_yr].get(t_str, 0))
+                growth[t_idx] = (c_now - c_prev) / (c_prev + 1.0)
+            topic_growth_by_year[yr] = growth
+
     return CopeGraphBundle(
         graphs=graphs,
         num_corps=num_authors,
@@ -372,6 +412,97 @@ def load_author_topic_graph_bundle(
         init_vectors=init_vectors,
         dataframe=df,
         right_nodes=topics,
+        topic_growth_by_year=topic_growth_by_year if topic_growth_by_year else None,
+    )
+
+
+def load_bipartite_domain_graph_bundle(
+    csv_path: Union[str, Path],
+    *,
+    min_events: int = 2,
+    year_min: int = 2000,
+    year_max: int = 2021,
+    year_range: Optional[Tuple[int, int]] = None,
+    years_csv: str = "",
+    all_years: bool = False,
+) -> CopeGraphBundle:
+    """
+    Load a PatentsView-derived bipartite event CSV (columns: ts, u, i).
+
+    Actors (inventors) are the left partition; IPC codes are the right.
+    Node features are one-hot over CPC subclass (no pre-computed embeddings).
+    """
+    path = Path(csv_path)
+    if not path.is_file():
+        raise FileNotFoundError(f"データが見つかりません: {path}")
+
+    df = preprocess_bipartite_events(
+        str(path),
+        year_min=year_min,
+        year_max=year_max,
+        min_events=min_events,
+    )
+    if len(df) == 0:
+        raise ValueError("前処理後データが空です。year_min/year_max や min_events を確認してください。")
+
+    graphs_full, all_actors, all_ipc, total_n, hist_edges, in_dim = build_bipartite_event_graphs(df)
+    num_actors = len(all_actors)
+    if num_actors == 0:
+        raise ValueError("アクターが 0 です。min_events を下げるか CSV を確認してください。")
+
+    years_list = select_year_list(
+        graphs_full,
+        year_range=year_range,
+        years_csv=years_csv,
+        all_years=all_years,
+    )
+    graphs = subset_graphs(graphs_full, years_list)
+    if len(graphs) < 2:
+        raise ValueError(
+            f"年次グラフが 2 年未満です: {sorted(graphs.keys())}。"
+            " --year-range を調整してください。"
+        )
+
+    init_vectors = calculate_initial_actor_vectors(df, num_actors, in_dim, all_actors)
+
+    # IPC (right partition) ごとの年次成長率: g_j(year) = (count(year) - count(year-1)) / (count(year-1) + 1)
+    topic_growth_by_year: Dict[int, torch.Tensor] = {}
+    if len(all_ipc) > 0 and "i" in df.columns:
+        ipc_to_idx = {t: i for i, t in enumerate(all_ipc)}
+        if "year" in df.columns:
+            df_y = df
+        else:
+            df_y = df.copy()
+            df_y["year"] = pd.to_datetime(df_y["ts"]).dt.year
+        yr_counts: Dict[int, Dict[str, int]] = {}
+        for yr_val, grp in df_y.groupby("year"):
+            cnt: Dict[str, int] = {}
+            for v in grp["i"].dropna():
+                cnt[str(v)] = cnt.get(str(v), 0) + 1
+            yr_counts[int(yr_val)] = cnt
+        sorted_yrs = sorted(yr_counts.keys())
+        for k, yr in enumerate(sorted_yrs):
+            if k == 0:
+                continue
+            prev = sorted_yrs[k - 1]
+            growth = torch.zeros(len(all_ipc), dtype=torch.float32)
+            for s_str, s_idx in ipc_to_idx.items():
+                c_now  = float(yr_counts[yr].get(s_str, 0))
+                c_prev = float(yr_counts[prev].get(s_str, 0))
+                growth[s_idx] = (c_now - c_prev) / (c_prev + 1.0)
+            topic_growth_by_year[yr] = growth
+
+    return CopeGraphBundle(
+        graphs=graphs,
+        num_corps=num_actors,
+        hist_edges=hist_edges,
+        in_dim=in_dim,
+        total_n=total_n,
+        corps=all_actors,
+        init_vectors=init_vectors,
+        dataframe=df,
+        right_nodes=all_ipc,
+        topic_growth_by_year=topic_growth_by_year if topic_growth_by_year else None,
     )
 
 
@@ -403,6 +534,8 @@ class ModelBuildKw:
     pnode_density_ema_momentum: float = 0.05
     #: 履歴 K>1 のとき ``linear``（従来）または ``gru``
     pnode_hist_fuse_mode: str = "gru"
+    #: NeuralODE 用履歴融合モード: ``linear``（従来）または ``gru``（対称比較用）
+    neural_ode_hist_fuse_mode: str = "linear"
     #: PC-PNODE: w_ρ 初期値（密度引力強度）
     pc_w_rho_init: float = 0.1
     #: PC-PNODE: w_Δ 初期値（トレンド引力強度）
@@ -411,6 +544,16 @@ class ModelBuildKw:
     pc_log_bandwidth_init: float = 0.0
     #: PC-PNODE: density-align 損失の重み（λ_da）
     pc_density_align_weight: float = 0.005
+    #: Φ-NBD（pnode_nbd）: NMF テーマ荷重 (num_nodes, K)。None で非アンカー基底に退化。
+    nmf_node_theme_W: Optional[torch.Tensor] = None
+    #: Φ-NBD: 基底数 K（= NMF テーマ数）
+    nmf_num_basis: int = 12
+    #: Φ-NBD: アンカー井戸の強度
+    nmf_anchor_weight: float = 1.0
+    #: Φ-NBD: テーマ重心 EMA モメンタム
+    nmf_anchor_momentum: float = 0.1
+    #: Φ-NBD: α(t) の Fourier 次数
+    nmf_time_fourier_K: int = 8
 
 
 def build_baseline_model(
@@ -419,7 +562,7 @@ def build_baseline_model(
     bundle: CopeGraphBundle,
     kw: ModelBuildKw,
 ) -> nn.Module:
-    """`key` は `static` / `rnn` / `neural_ode` / `pnode` / `pnode_explicit` / `pnode_residual` / `pnode_energy` / `cope`。"""
+    """`key` は `static` / `rnn` / `neural_ode` / `pnode` / `pnode_explicit` / `pnode_residual` / `agnode` / `pnode_energy` / `cope`。"""
     common = dict(
         num_nodes=bundle.total_n,
         num_corps=bundle.num_corps,
@@ -457,12 +600,40 @@ def build_baseline_model(
             year_min=y_min,
             year_max=y_max,
         ).to(device)
+    if key == "pnode_nbd":
+        from pnode_patent_runner.benchmark_pnode_energy_td import PNodeEnergyTDBasis
+
+        y_min = int(kw.year_min) if kw.year_min is not None else 2010
+        y_max = int(kw.year_max) if kw.year_max is not None else 2020
+        node_W = kw.nmf_node_theme_W
+        node_W_t = node_W.to(device) if node_W is not None else None
+        return PNodeEnergyTDBasis(
+            **common,
+            year_min=y_min,
+            year_max=y_max,
+            num_basis=int(kw.nmf_num_basis),
+            time_fourier_K=int(kw.nmf_time_fourier_K),
+            node_theme_W=node_W_t,
+            anchor_weight=float(kw.nmf_anchor_weight),
+            anchor_momentum=float(kw.nmf_anchor_momentum),
+        ).to(device)
+    if key in ("evolve_gcn", "roland"):
+        return BenchmarkTemporalVGAE(
+            **common,
+            w_pot_init=0.0,
+            variant=key,
+            rnn_history_len=kw.rnn_history_len,
+        ).to(device)
+    # neural_ode_gru は neural_ode variant + GRU 履歴融合（対称比較用）
+    actual_variant = "neural_ode" if key == "neural_ode_gru" else key
+    ode_hist_fuse = "gru" if key == "neural_ode_gru" else str(kw.neural_ode_hist_fuse_mode)
+
     y_min = int(kw.year_min) if kw.year_min is not None else 2010
     y_max = int(kw.year_max) if kw.year_max is not None else 2020
     return BenchmarkTemporalVGAE(
         **common,
         w_pot_init=0.0,
-        variant=key,
+        variant=actual_variant,
         rnn_history_len=kw.rnn_history_len,
         pnode_history_len=int(kw.pnode_history_len),
         time_dependent_potential=bool(kw.time_dependent_potential)
@@ -477,6 +648,7 @@ def build_baseline_model(
         pnode_density_log_weight=float(kw.pnode_density_log_weight),
         pnode_density_ema_momentum=float(kw.pnode_density_ema_momentum),
         pnode_hist_fuse_mode=str(kw.pnode_hist_fuse_mode),
+        neural_ode_hist_fuse_mode=ode_hist_fuse,
         pc_w_rho_init=float(kw.pc_w_rho_init),
         pc_w_delta_init=float(kw.pc_w_delta_init),
         pc_log_bandwidth_init=float(kw.pc_log_bandwidth_init),

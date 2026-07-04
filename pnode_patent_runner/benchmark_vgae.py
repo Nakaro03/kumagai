@@ -11,14 +11,19 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 from pnode_patent_runner.models import (
+    AdaptiveGateNeuralODEPredictor,
+    EvolveGCNOPredictor,
     GradientNeuralODEPredictor,
     GradientNeuralODEPredictorExplicitAttention,
     GradientODEFunc,
     GradientResidualNeuralODEPredictor,
+    GravityNeuralODEPredictor,
+    HarmonicPotentialPredictor,
     NeuralODEPredictor,
     NeuralODEPredictorTime,
     PopulationCoupledPotentialNet,
     RNNLatentPredictor,
+    ROLANDPredictor,
     SharedVGAEEncoder,
     StaticLatentPredictor,
     integrate_gradient_flow_ode,
@@ -33,6 +38,11 @@ BENCHMARK_VARIANT_KEYS = (
     "pnode_explicit",
     "pnode_residual",
     "pnode_pc",
+    "agnode",
+    "harmonic",
+    "gravity",
+    "evolve_gcn",
+    "roland",
 )
 
 
@@ -98,6 +108,57 @@ class PNodeHistoryFuseGRU(nn.Module):
         return h[-1]
 
 
+class TrendAdapter(nn.Module):
+    """
+    Architecture A: 二重エンコーダの軽量版 = z 空間→ L_trend 空間への射影。
+
+    入力: z_topics ∈ ℝ^(n_topics × D)   (encoder 出力, detach 済み)
+    出力: z_trend  ∈ ℝ^(n_topics × D)   (Φ計算用に再写像)
+
+    変換: z_trend_j = W·z_j + b + e_j
+        W: D × D linear projection (回転・スケーリング)
+        b: D bias
+        e_j: per-topic bias (n_topics × D)
+
+    用途:
+        L_trend = MSE_or_ListNet( Φ(adapter(z.detach())), -g )
+        Linear と bias は L_trend だけが更新する (encoder は更新しない)
+        → encoder は L_future + L_recon に集中、adapter は L_trend に集中
+    """
+    def __init__(
+        self,
+        latent_dim: int,
+        num_topics: int,
+        use_proj: bool = True,
+        init_bias_std: float = 0.01,
+    ):
+        super().__init__()
+        self.latent_dim = int(latent_dim)
+        self.num_topics = int(num_topics)
+        self.use_proj = bool(use_proj)
+        if self.use_proj:
+            self.proj = nn.Linear(latent_dim, latent_dim)
+            # 初期は恒等写像に近い (proj weight = I, bias = 0)
+            with torch.no_grad():
+                self.proj.weight.copy_(torch.eye(latent_dim))
+                self.proj.bias.zero_()
+        self.bias = nn.Parameter(
+            torch.randn(num_topics, latent_dim) * float(init_bias_std)
+        )
+
+    def forward(self, z_topics: torch.Tensor) -> torch.Tensor:
+        # z_topics: (n_topics_now, D)  ← detach 済みを期待
+        n_now = min(z_topics.size(0), self.num_topics)
+        out = z_topics
+        if self.use_proj:
+            out = self.proj(out)
+        out = out[:n_now] + self.bias[:n_now]
+        if z_topics.size(0) > n_now:
+            # padding (通常は発生しない)
+            return torch.cat([out, z_topics[n_now:]], dim=0)
+        return out
+
+
 class BenchmarkTemporalVGAE(nn.Module):
     """
     - static: 潜在の時間シフトなし
@@ -132,9 +193,12 @@ class BenchmarkTemporalVGAE(nn.Module):
         pnode_density_log_weight: float = 1.0,
         pnode_density_ema_momentum: float = 0.05,
         pnode_hist_fuse_mode: str = "gru",
+        neural_ode_hist_fuse_mode: str = "linear",
         pc_w_rho_init: float = 0.1,
         pc_w_delta_init: float = 0.1,
         pc_log_bandwidth_init: float = 0.0,
+        topic_position_embedding: bool = False,
+        topic_pos_embed_init_std: float = 0.01,
     ):
         super().__init__()
         if variant not in BENCHMARK_VARIANT_KEYS:
@@ -165,6 +229,7 @@ class BenchmarkTemporalVGAE(nn.Module):
             "pnode_explicit",
             "pnode_residual",
             "pnode_pc",
+            "agnode",
             "neural_ode",
         ):
             self.temporal_history_len = max(1, int(pnode_history_len))
@@ -180,13 +245,29 @@ class BenchmarkTemporalVGAE(nn.Module):
         self.encoder = SharedVGAEEncoder(input_dim, hidden_dim, latent_dim)
         self.r = nn.Parameter(torch.tensor(1.0))
         self.w_pot = nn.Parameter(torch.tensor(float(w_pot_init)))
+        # Architecture A: TrendAdapter (二重エンコーダの軽量版)
+        #   z は L_recon + L_future で最適化 (元の役割)
+        #   adapter(z.detach()) は L_trend 専用空間に z_topic を再写像
+        #   adapter = Linear(latent_dim, latent_dim) + per-topic bias
+        #   このため L_trend は encoder ではなく adapter のみを更新できる
+        self.use_trend_adapter = bool(topic_position_embedding)
+        if self.use_trend_adapter:
+            n_topics = num_nodes - num_corps
+            self.trend_adapter = TrendAdapter(
+                latent_dim=latent_dim,
+                num_topics=n_topics,
+                use_proj=True,
+                init_bias_std=float(topic_pos_embed_init_std),
+            )
+        else:
+            self.trend_adapter = None
         self.pnode_hist_fuse_mode = str(pnode_hist_fuse_mode).lower()
         if self.pnode_hist_fuse_mode not in ("linear", "gru"):
             raise ValueError("pnode_hist_fuse_mode must be 'linear' or 'gru'")
         self.pnode_potential_feature = str(pnode_potential_feature).lower()
         self.pnode_rff_frozen_basis = bool(pnode_rff_frozen_basis)
         self.pnode_hist_fuse: Optional[nn.Module]
-        if variant in ("pnode", "pnode_explicit", "pnode_residual", "pnode_pc") and self.temporal_history_len > 1:
+        if variant in ("pnode", "pnode_explicit", "pnode_residual", "pnode_pc", "agnode") and self.temporal_history_len > 1:
             if self.pnode_hist_fuse_mode == "gru":
                 self.pnode_hist_fuse = PNodeHistoryFuseGRU(
                     latent_dim, self.temporal_history_len
@@ -199,16 +280,52 @@ class BenchmarkTemporalVGAE(nn.Module):
         else:
             self.pnode_hist_fuse = None
 
+        self.neural_ode_hist_fuse_mode = str(neural_ode_hist_fuse_mode).lower()
+        if self.neural_ode_hist_fuse_mode not in ("linear", "gru"):
+            raise ValueError("neural_ode_hist_fuse_mode must be 'linear' or 'gru'")
         self.neural_ode_hist_fuse: Optional[nn.Module]
         if variant == "neural_ode" and self.temporal_history_len > 1:
-            self.neural_ode_hist_fuse = nn.Linear(
-                latent_dim * self.temporal_history_len,
-                latent_dim,
-            )
+            if self.neural_ode_hist_fuse_mode == "gru":
+                self.neural_ode_hist_fuse = PNodeHistoryFuseGRU(
+                    latent_dim, self.temporal_history_len
+                )
+            else:
+                self.neural_ode_hist_fuse = nn.Linear(
+                    latent_dim * self.temporal_history_len,
+                    latent_dim,
+                )
         else:
             self.neural_ode_hist_fuse = None
 
-        if variant == "static":
+        if variant == "evolve_gcn":
+            self.temporal_predictor = EvolveGCNOPredictor(latent_dim, hidden_dim)
+            self.temporal_history_len = int(rnn_history_len)
+        elif variant == "roland":
+            self.temporal_predictor = ROLANDPredictor(latent_dim, hidden_dim)
+        elif variant == "agnode":
+            self.temporal_predictor = AdaptiveGateNeuralODEPredictor(
+                latent_dim,
+                hidden_dim,
+                ode_method=pnode_ode_method,
+                ode_n_steps=pnode_ode_n_steps,
+                feature_mode=str(pnode_potential_feature),
+                rff_learnable_basis=not bool(pnode_rff_frozen_basis),
+            )
+        elif variant == "gravity":
+            num_topics = num_nodes - num_corps
+            self.temporal_predictor = GravityNeuralODEPredictor(
+                num_topics=num_topics,
+                ode_method=pnode_ode_method,
+                ode_n_steps=pnode_ode_n_steps,
+            )
+        elif variant == "harmonic":
+            num_topics = num_nodes - num_corps
+            self.temporal_predictor = HarmonicPotentialPredictor(
+                num_corps=num_corps,
+                num_topics=num_topics,
+                latent_dim=latent_dim,
+            )
+        elif variant == "static":
             self.temporal_predictor = StaticLatentPredictor()
         elif variant == "rnn":
             self.temporal_predictor = RNNLatentPredictor(latent_dim, hidden_dim)
@@ -288,7 +405,23 @@ class BenchmarkTemporalVGAE(nn.Module):
         x_features = self.get_node_features(x, node_indices)
         mu, logvar = self.encoder(x_features, edge_index)
         z = self.reparameterize(mu, logvar)
+        # 注意: トピック位置埋め込みはここでは適用しない (L_future に汚染される)。
+        # apply_trend_adapter() メソッドで L_trend 専用に detach+adapter を適用する。
         return z, mu, logvar
+
+    def apply_trend_adapter(self, z_topics_raw: torch.Tensor) -> torch.Tensor:
+        """
+        L_trend 専用の z_topic 変換 (Architecture A)。
+        - z_topics_raw を detach() してから adapter を適用することで、
+          L_trend の勾配は encoder ではなく adapter (proj + bias) のみを更新する。
+        - encoder は L_recon + L_future のみで最適化される。
+        - adapter は L_trend のみで最適化されるため、
+          z が L_future に支配されていても adapter が空間を再形成できる。
+        """
+        if not self.use_trend_adapter or self.trend_adapter is None:
+            return z_topics_raw
+        z_detached = z_topics_raw.detach()
+        return self.trend_adapter(z_detached)
 
     def reparameterize(self, mu, logvar):
         if self.training:
@@ -316,8 +449,21 @@ class BenchmarkTemporalVGAE(nn.Module):
         z_history_list: List[torch.Tensor],
         year_calendar_start: Optional[int] = None,
     ) -> torch.Tensor:
-        if self.variant == "rnn":
-            return self.temporal_predictor(z_history_list)
+        if self.variant == "gravity":
+            z_all     = z_history_list[-1]
+            z_authors = z_all[: self.num_corps]
+            z_topics  = z_all[self.num_corps :]
+            self.temporal_predictor.set_topic_positions(z_topics)
+            z_authors_next = self.temporal_predictor(z_authors)
+            return torch.cat([z_authors_next, z_topics], dim=0)
+        if self.variant == "harmonic":
+            return self.temporal_predictor(z_history_list[-1])
+        if self.variant in ("rnn", "evolve_gcn"):
+            k = self.temporal_history_len
+            zs = list(z_history_list)
+            while len(zs) < k:
+                zs = [zs[0]] + zs
+            return self.temporal_predictor(zs[-k:])
         z_last = z_history_list[-1]
         if self.variant in (
             "pnode",

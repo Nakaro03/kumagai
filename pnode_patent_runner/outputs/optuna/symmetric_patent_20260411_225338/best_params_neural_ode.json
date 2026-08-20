@@ -1,0 +1,40 @@
+{
+  "study_name": "optuna_baseline_neural_ode",
+  "optuna_method": "neural_ode",
+  "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_225338.db",
+  "data_domain": "patent",
+  "data": "data/processed/topic_info3.csv",
+  "holdout_test_year": null,
+  "years": [
+    2010,
+    2011,
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+  ],
+  "n_trials": 1,
+  "epochs_per_trial": 2,
+  "space": "default",
+  "cope_link_score": "distance",
+  "seed": 42,
+  "best_value": 0.5253406911979547,
+  "best_trial_number": 0,
+  "best_params": {
+    "lr": 0.0007332550590666453,
+    "beta": 0.013608446967744256,
+    "pos_weight": 8.622165703832456,
+    "latent_pred_weight": 0.39884708482154074,
+    "future_link_weight": 8.80207339368567,
+    "potential_weight": 0.025257429193975695,
+    "trajectory_weight": 0.04807106049012608,
+    "w_pot_init": 0.013400853046571846,
+    "hidden_dim": 64
+  },
+  "user_attrs": {}
+}

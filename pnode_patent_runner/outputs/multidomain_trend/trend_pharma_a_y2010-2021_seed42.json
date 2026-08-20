@@ -1,0 +1,70 @@
+{
+  "results": [
+    {
+      "key": "static",
+      "domain": "pharma",
+      "year_start": 2010,
+      "year_end": 2021,
+      "n_topics": 2781,
+      "link_auc": 0.868164,
+      "link_ap": 0.8350186372574006,
+      "entry_auc": 0.7759174806090203,
+      "spearman_r": NaN,
+      "spearman_p": NaN,
+      "ndcg_at_10": NaN,
+      "phi_span": NaN
+    },
+    {
+      "key": "neural_ode",
+      "domain": "pharma",
+      "year_start": 2010,
+      "year_end": 2021,
+      "n_topics": 2781,
+      "link_auc": 0.8714617777777779,
+      "link_ap": 0.84401808983098,
+      "entry_auc": 0.777093507612755,
+      "spearman_r": NaN,
+      "spearman_p": NaN,
+      "ndcg_at_10": NaN,
+      "phi_span": NaN
+    },
+    {
+      "key": "pnode",
+      "domain": "pharma",
+      "year_start": 2010,
+      "year_end": 2021,
+      "n_topics": 2781,
+      "link_auc": 0.8704459999999998,
+      "link_ap": 0.8258988153343324,
+      "entry_auc": 0.7715006463659868,
+      "spearman_r": NaN,
+      "spearman_p": NaN,
+      "ndcg_at_10": NaN,
+      "phi_span": NaN
+    },
+    {
+      "key": "pnode_pc",
+      "domain": "pharma",
+      "year_start": 2010,
+      "year_end": 2021,
+      "n_topics": 2781,
+      "link_auc": 0.8650126666666667,
+      "link_ap": 0.8101398383399019,
+      "entry_auc": 0.7805677247917264,
+      "spearman_r": -0.07068144276908835,
+      "spearman_p": 0.00019118399295494143,
+      "ndcg_at_10": 0.04851712959482155,
+      "phi_span": 0.7888171672821045
+    }
+  ],
+  "settings": {
+    "domain": "pharma",
+    "year_start": 2010,
+    "year_end": 2021,
+    "holdout": 2021,
+    "min_events": 2000,
+    "epochs": 15,
+    "seed": 42,
+    "use_a": true
+  }
+}

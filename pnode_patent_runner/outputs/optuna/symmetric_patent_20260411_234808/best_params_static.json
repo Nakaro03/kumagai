@@ -1,0 +1,40 @@
+{
+  "study_name": "optuna_baseline_static",
+  "optuna_method": "static",
+  "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+  "data_domain": "patent",
+  "data": "data/processed/topic_info3.csv",
+  "holdout_test_year": null,
+  "years": [
+    2010,
+    2011,
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+  ],
+  "n_trials": 5,
+  "epochs_per_trial": 3,
+  "space": "minimal",
+  "cope_link_score": "distance",
+  "seed": 42,
+  "best_value": 0.6149775725894814,
+  "best_trial_number": 0,
+  "best_params": {
+    "lr": 0.0013898029741451548,
+    "beta": 0.007972182849829812,
+    "pos_weight": 3.910207261408723,
+    "latent_pred_weight": 1.1397118950656444,
+    "future_link_weight": 14.733961385565008,
+    "potential_weight": 0.006025986990141593,
+    "trajectory_weight": 0.04225424190094472,
+    "w_pot_init": 0.03583014996959423,
+    "hidden_dim": 192
+  },
+  "user_attrs": {}
+}

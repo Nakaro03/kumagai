@@ -1,0 +1,67 @@
+{
+  "readme_pipeline": true,
+  "data_domain": "patent",
+  "data": "notebooks/work/dataset/topic_info3.csv",
+  "time_dependent_potential": true,
+  "phi_year_min": 2010,
+  "phi_year_max": 2020,
+  "holdout_test_year": null,
+  "years": [
+    2010,
+    2011,
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+  ],
+  "seed": 42,
+  "epochs": 10,
+  "link_score_mode": "distance",
+  "cope_density_calibrated": false,
+  "cope_density_log_weight": 1.0,
+  "cope_density_ema_momentum": 0.05,
+  "loss": {
+    "beta": 0.01,
+    "pos_weight": 5.0,
+    "latent_pred_weight": 1.0,
+    "future_link_weight": 10.0,
+    "potential_weight": 0.01,
+    "trajectory_weight": 0.05,
+    "num_neg_recon": 800,
+    "num_neg_future": 400
+  },
+  "optuna_best_json": null,
+  "optuna_best_json_map": null,
+  "optuna_meta": null,
+  "optuna_meta_by_method": {},
+  "optuna_best_params_by_method": {},
+  "cope_optuna_best_params": null,
+  "results": [
+    {
+      "label": "P-NODE",
+      "key": "pnode",
+      "best_val_auc": 0.710658,
+      "final_val_auc": 0.710658,
+      "final_val_ap": 0.684816475488574,
+      "train_split_val_auc": 0.710658,
+      "train_split_val_ap": 0.684816475488574,
+      "val_auc_per_epoch": [
+        0.5299940000000001,
+        0.554872,
+        0.523754,
+        0.49220600000000003,
+        0.557382,
+        0.583404,
+        0.6193000000000001,
+        0.6387320000000001,
+        0.6879779999999999,
+        0.710658
+      ]
+    }
+  ]
+}

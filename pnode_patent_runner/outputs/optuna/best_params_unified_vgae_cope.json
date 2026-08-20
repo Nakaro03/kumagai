@@ -1,0 +1,38 @@
+{
+  "study_name": "unified_vgae_cope",
+  "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/unified_vgae_study.db",
+  "data_domain": "patent",
+  "data": "notebooks/work/dataset/topic_info3.csv",
+  "years": [
+    2010,
+    2011,
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+  ],
+  "n_trials": 20,
+  "epochs_per_trial": 10,
+  "space": "default",
+  "cope_link_score": "distance",
+  "seed": 42,
+  "best_value": 0.8931074233016801,
+  "best_trial_number": 33,
+  "best_params": {
+    "lr": 0.0009520717670720548,
+    "beta": 0.023717445532660256,
+    "pos_weight": 2.0235527828451088,
+    "latent_pred_weight": 1.2315761286007052,
+    "future_link_weight": 12.627878146903775,
+    "potential_weight": 0.007890369475338322,
+    "trajectory_weight": 0.09497847554124976,
+    "w_pot_init": 0.13402528385919868,
+    "hidden_dim": 192
+  },
+  "user_attrs": {}
+}

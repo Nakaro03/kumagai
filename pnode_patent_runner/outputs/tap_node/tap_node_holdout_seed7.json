@@ -1,0 +1,32 @@
+{
+  "created_at_utc": "2026-07-05T12:14:58.856786+00:00",
+  "method": "tap_node",
+  "data_domain": "author_topic",
+  "data": "data/processed/arxiv_cs_embedded_2020-2026_full.csv",
+  "year_range": [
+    2022,
+    2025
+  ],
+  "seed": 7,
+  "epochs": 20,
+  "holdout_test_year": 2025,
+  "tap_node_config": {
+    "hidden_dim": 128,
+    "latent_dim": 2,
+    "kappa_init": 1.0,
+    "b_init": 0.5,
+    "log_h_init": 0.0,
+    "link_score_mode": "distance"
+  },
+  "tap_node_final_val_auc": 0.7593906666666667,
+  "tap_node_final_val_ap": 0.6837738048794744,
+  "tap_node_final_val_ece": 0.17502826430045226,
+  "learned_scalars": {
+    "kappa": 1.5854229927062988,
+    "b": 1.2005761861801147,
+    "h": 0.30834266543388367,
+    "alpha": 0.3846310079097748
+  },
+  "baselines_reference": null,
+  "dual_force_reference": null
+}

@@ -1,0 +1,323 @@
+{
+  "readme_pipeline": true,
+  "data_domain": "arxiv",
+  "data": "/home/nakamuraroi/kumagai/data/processed/arxiv_cs_embedded_2020-2026_full.csv",
+  "time_dependent_potential": true,
+  "phi_year_min": 2020,
+  "phi_year_max": 2026,
+  "holdout_test_year": 2026,
+  "years": [
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025,
+    2026
+  ],
+  "seed": 42,
+  "epochs": 10,
+  "link_score_mode": "distance",
+  "cope_density_calibrated": false,
+  "cope_density_log_weight": 1.0,
+  "cope_density_ema_momentum": 0.05,
+  "loss": {
+    "beta": 0.01,
+    "pos_weight": 5.0,
+    "latent_pred_weight": 1.0,
+    "future_link_weight": 10.0,
+    "potential_weight": 0.01,
+    "trajectory_weight": 0.05,
+    "num_neg_recon": 800,
+    "num_neg_future": 400
+  },
+  "optuna_best_json": "/home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808/best_params_cope.json",
+  "optuna_best_json_map": "/home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808/optuna_paths_by_method.json",
+  "optuna_meta": {
+    "study_name": "unified_vgae_cope",
+    "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+    "best_value": 0.6182275497626004,
+    "best_trial_number": 2,
+    "space": "minimal",
+    "cope_link_score": "distance"
+  },
+  "optuna_meta_by_method": {
+    "cope": {
+      "study_name": "unified_vgae_cope",
+      "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+      "best_value": 0.6182275497626004,
+      "best_trial_number": 2,
+      "space": "minimal",
+      "cope_link_score": "distance"
+    },
+    "neural_ode": {
+      "study_name": "optuna_baseline_neural_ode",
+      "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+      "best_value": 0.6242039125273924,
+      "best_trial_number": 2,
+      "space": "minimal",
+      "cope_link_score": "distance"
+    },
+    "pnode": {
+      "study_name": "optuna_baseline_pnode",
+      "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+      "best_value": 0.6270330190832725,
+      "best_trial_number": 4,
+      "space": "minimal",
+      "cope_link_score": "distance"
+    },
+    "rnn": {
+      "study_name": "optuna_baseline_rnn",
+      "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+      "best_value": 0.6769069005661067,
+      "best_trial_number": 4,
+      "space": "minimal",
+      "cope_link_score": "distance"
+    },
+    "static": {
+      "study_name": "optuna_baseline_static",
+      "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+      "best_value": 0.6149775725894814,
+      "best_trial_number": 0,
+      "space": "minimal",
+      "cope_link_score": "distance"
+    }
+  },
+  "optuna_best_params_by_method": {
+    "cope": {
+      "lr": 0.0013218583462058368,
+      "beta": 0.014925083536945693,
+      "pos_weight": 4.610561080420313,
+      "latent_pred_weight": 0.8761328453635061,
+      "future_link_weight": 9.659765775490353,
+      "potential_weight": 0.014880208659275137,
+      "trajectory_weight": 0.02217598961611118,
+      "w_pot_init": 0.07488995178884374,
+      "hidden_dim": 192
+    },
+    "neural_ode": {
+      "lr": 0.0006173549753583337,
+      "beta": 0.014480813945575436,
+      "pos_weight": 3.033133906719611,
+      "latent_pred_weight": 1.4210565501187231,
+      "future_link_weight": 12.329931367277663,
+      "potential_weight": 0.010733763995673534,
+      "trajectory_weight": 0.070986698373877,
+      "w_pot_init": 0.11294526443261113,
+      "hidden_dim": 256
+    },
+    "pnode": {
+      "lr": 0.0012633874300885632,
+      "beta": 0.009722996022739416,
+      "pos_weight": 5.063288666503871,
+      "latent_pred_weight": 1.0750216264014671,
+      "future_link_weight": 9.796812560819244,
+      "potential_weight": 0.01987560266490604,
+      "trajectory_weight": 0.04285158167727261,
+      "w_pot_init": 0.03857711820104426,
+      "hidden_dim": 256
+    },
+    "rnn": {
+      "lr": 0.0009905055318066617,
+      "beta": 0.008840446599041143,
+      "pos_weight": 4.6939981138700775,
+      "latent_pred_weight": 0.8767606980042856,
+      "future_link_weight": 10.000140775819744,
+      "potential_weight": 0.008708105079670092,
+      "trajectory_weight": 0.027916443750587883,
+      "w_pot_init": 0.04978379229722865,
+      "hidden_dim": 128,
+      "rnn_history_len": 2
+    },
+    "static": {
+      "lr": 0.0013898029741451548,
+      "beta": 0.007972182849829812,
+      "pos_weight": 3.910207261408723,
+      "latent_pred_weight": 1.1397118950656444,
+      "future_link_weight": 14.733961385565008,
+      "potential_weight": 0.006025986990141593,
+      "trajectory_weight": 0.04225424190094472,
+      "w_pot_init": 0.03583014996959423,
+      "hidden_dim": 192
+    }
+  },
+  "cope_optuna_best_params": {
+    "lr": 0.0013218583462058368,
+    "beta": 0.014925083536945693,
+    "pos_weight": 4.610561080420313,
+    "latent_pred_weight": 0.8761328453635061,
+    "future_link_weight": 9.659765775490353,
+    "potential_weight": 0.014880208659275137,
+    "trajectory_weight": 0.02217598961611118,
+    "w_pot_init": 0.07488995178884374,
+    "hidden_dim": 192
+  },
+  "results": [
+    {
+      "label": "Static",
+      "key": "static",
+      "best_val_auc": 0.6342933333333335,
+      "final_val_auc": 0.6180826666666667,
+      "final_val_ap": 0.5835835356631178,
+      "train_split_val_auc": 0.6639386666666667,
+      "train_split_val_ap": 0.6402681924966951,
+      "val_auc_per_epoch": [
+        0.5254953333333334,
+        0.5238704444444445,
+        0.5144631111111111,
+        0.5264404444444445,
+        0.5245644444444445,
+        0.5437053333333334,
+        0.5682617777777778,
+        0.6038926666666666,
+        0.6304644444444445,
+        0.6342933333333335
+      ],
+      "holdout_test_year": 2026,
+      "holdout_year_prev": 2025,
+      "train_years": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "optuna_tuned": true,
+      "optuna_tuned_method_key": "static"
+    },
+    {
+      "label": "RNN+VGAE",
+      "key": "rnn",
+      "best_val_auc": 0.6605828888888888,
+      "final_val_auc": 0.59131,
+      "final_val_ap": 0.5767914290435174,
+      "train_split_val_auc": 0.6580431111111111,
+      "train_split_val_ap": 0.6196168630953514,
+      "val_auc_per_epoch": [
+        0.5053417777777777,
+        0.5499453333333333,
+        0.6075946666666667,
+        0.6295277777777778,
+        0.6026855555555555,
+        0.6187391111111111,
+        0.6554631111111111,
+        0.6553408888888889,
+        0.6605828888888888,
+        0.6533671111111111
+      ],
+      "holdout_test_year": 2026,
+      "holdout_year_prev": 2025,
+      "train_years": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "optuna_tuned": true,
+      "optuna_tuned_method_key": "rnn"
+    },
+    {
+      "label": "NeuralODE",
+      "key": "neural_ode",
+      "best_val_auc": 0.6237268888888889,
+      "final_val_auc": 0.5949293333333334,
+      "final_val_ap": 0.5671411590040719,
+      "train_split_val_auc": 0.6431380000000001,
+      "train_split_val_ap": 0.6028139100454061,
+      "val_auc_per_epoch": [
+        0.5576484444444445,
+        0.513994,
+        0.5473006666666667,
+        0.5162260000000001,
+        0.5354002222222223,
+        0.5413479999999999,
+        0.574832,
+        0.5833673333333333,
+        0.6237268888888889,
+        0.6220308888888889
+      ],
+      "holdout_test_year": 2026,
+      "holdout_year_prev": 2025,
+      "train_years": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "optuna_tuned": true,
+      "optuna_tuned_method_key": "neural_ode"
+    },
+    {
+      "label": "P-NODE",
+      "key": "pnode",
+      "best_val_auc": 0.6447393333333333,
+      "final_val_auc": 0.6169208888888889,
+      "final_val_ap": 0.5940437948203078,
+      "train_split_val_auc": 0.636362,
+      "train_split_val_ap": 0.6056094967300484,
+      "val_auc_per_epoch": [
+        0.5556208888888889,
+        0.551494,
+        0.538839111111111,
+        0.5468388888888889,
+        0.5435475555555556,
+        0.5670686666666667,
+        0.559700888888889,
+        0.5620904444444444,
+        0.6117688888888889,
+        0.6447393333333333
+      ],
+      "holdout_test_year": 2026,
+      "holdout_year_prev": 2025,
+      "train_years": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "optuna_tuned": true,
+      "optuna_tuned_method_key": "pnode"
+    },
+    {
+      "label": "CoPE-VGAE",
+      "key": "cope",
+      "best_val_auc": 0.6472342222222223,
+      "final_val_auc": 0.6229335555555555,
+      "final_val_ap": 0.6019026303782984,
+      "train_split_val_auc": 0.637783111111111,
+      "train_split_val_ap": 0.6032474901274022,
+      "val_auc_per_epoch": [
+        0.5123404444444445,
+        0.5310524444444444,
+        0.5188346666666667,
+        0.501114,
+        0.5153706666666666,
+        0.5231377777777778,
+        0.5323684444444444,
+        0.5999224444444444,
+        0.6472342222222223,
+        0.6447215555555555
+      ],
+      "holdout_test_year": 2026,
+      "holdout_year_prev": 2025,
+      "train_years": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ],
+      "optuna_tuned": true,
+      "optuna_tuned_method_key": "cope",
+      "optuna_tuned_cope": true
+    }
+  ]
+}

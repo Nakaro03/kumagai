@@ -318,17 +318,15 @@ def compute_dual_force_vector_field_for_plotly(
     ode_f = model.temporal_predictor.ode_func
     num_corps = int(getattr(model, "num_corps", 0))
     data_y = data_t.to(device, non_blocking=True)
-    p_j = data_y.x[num_corps:]
+    z_np_t = torch.as_tensor(z_np, device=device, dtype=torch.float32)
+    p_j = z_np_t[num_corps:]
     ode_f.eval()
     tplus = data_y.topic_trend_plus
     tminus = data_y.topic_trend_minus
     dplus = tplus if tplus.dim() > 1 else tplus.unsqueeze(-1)
     dminus = tminus if tminus.dim() > 1 else tminus.unsqueeze(-1)
-    ode_f.set_topic_info(
-        p_j,
-        dplus.to(device=p_j.device, dtype=p_j.dtype),
-        dminus.to(device=p_j.device, dtype=p_j.dtype),
-    )
+    d_j = (dplus - dminus).to(device=p_j.device, dtype=p_j.dtype)
+    ode_f.set_topic_info(p_j, d_j)
 
     x = torch.linspace(x_min, x_max, resolution, device=device, dtype=torch.float32)
     yg = torch.linspace(y_min, y_max, resolution, device=device, dtype=torch.float32)
@@ -488,17 +486,14 @@ def compute_dual_force_node_speeds(
     """各潜在点での ``|v(z)|``（Dual-Force ODE ベクトル場の大きさ）。"""
     data_y = data_t.to(device, non_blocking=True)
     n = int(getattr(model, "num_corps", 0))
-    p_j = data_y.x[n:]
+    p_j = z.to(device)[n:]
     tplus = data_y.topic_trend_plus
     tminus = data_y.topic_trend_minus
     dplus = tplus if tplus.dim() > 1 else tplus.unsqueeze(-1)
     dminus = tminus if tminus.dim() > 1 else tminus.unsqueeze(-1)
+    d_j = (dplus - dminus).to(device=p_j.device, dtype=p_j.dtype)
     ode_f = model.temporal_predictor.ode_func
-    ode_f.set_topic_info(
-        p_j,
-        dplus.to(device=p_j.device, dtype=p_j.dtype),
-        dminus.to(device=p_j.device, dtype=p_j.dtype),
-    )
+    ode_f.set_topic_info(p_j, d_j)
     t0 = torch.tensor(0.0, device=device, dtype=z.dtype)
     v = ode_f(t0, z.to(device))
     return v.norm(dim=-1)

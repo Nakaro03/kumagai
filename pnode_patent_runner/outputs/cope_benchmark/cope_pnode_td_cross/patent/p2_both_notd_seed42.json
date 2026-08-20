@@ -1,0 +1,88 @@
+{
+  "readme_pipeline": true,
+  "data_domain": "patent",
+  "data": "notebooks/work/dataset/topic_info3.csv",
+  "time_dependent_potential": false,
+  "phi_year_min": 2010,
+  "phi_year_max": 2020,
+  "holdout_test_year": null,
+  "years": [
+    2010,
+    2011,
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+  ],
+  "seed": 42,
+  "epochs": 10,
+  "link_score_mode": "distance",
+  "cope_density_calibrated": false,
+  "cope_density_log_weight": 1.0,
+  "cope_density_ema_momentum": 0.05,
+  "loss": {
+    "beta": 0.01,
+    "pos_weight": 5.0,
+    "latent_pred_weight": 1.0,
+    "future_link_weight": 10.0,
+    "potential_weight": 0.01,
+    "trajectory_weight": 0.05,
+    "num_neg_recon": 800,
+    "num_neg_future": 400
+  },
+  "optuna_best_json": null,
+  "optuna_best_json_map": null,
+  "optuna_meta": null,
+  "optuna_meta_by_method": {},
+  "optuna_best_params_by_method": {},
+  "cope_optuna_best_params": null,
+  "results": [
+    {
+      "label": "CoPE-VGAE",
+      "key": "cope",
+      "best_val_auc": 0.716404,
+      "final_val_auc": 0.716404,
+      "final_val_ap": 0.6807664808078561,
+      "train_split_val_auc": 0.716404,
+      "train_split_val_ap": 0.6807664808078561,
+      "val_auc_per_epoch": [
+        0.53249,
+        0.52561,
+        0.5393220000000001,
+        0.5799960000000001,
+        0.6005739999999999,
+        0.6235860000000001,
+        0.6521539999999999,
+        0.675104,
+        0.713708,
+        0.716404
+      ]
+    },
+    {
+      "label": "P-NODE",
+      "key": "pnode",
+      "best_val_auc": 0.696896,
+      "final_val_auc": 0.6968840000000001,
+      "final_val_ap": 0.6548269190795011,
+      "train_split_val_auc": 0.6968840000000001,
+      "train_split_val_ap": 0.6548269190795011,
+      "val_auc_per_epoch": [
+        0.5358240000000001,
+        0.5226580000000001,
+        0.55569,
+        0.572634,
+        0.6237900000000001,
+        0.656002,
+        0.68004,
+        0.683798,
+        0.687508,
+        0.696896
+      ]
+    }
+  ]
+}

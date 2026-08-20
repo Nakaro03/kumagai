@@ -1,0 +1,265 @@
+{
+  "readme_pipeline": true,
+  "future_link_ece_n_bins": 15,
+  "eval_horizon_gaps": [],
+  "latent_horizon_metrics_note": "mse/mae: mean over graphs[year_next].active_mask nodes of (z_rollout - mu_encoder). direction_agreement: fraction where sign(||mu||_t-||mu||_{t-k}) equals sign(||z||_pred-||z||_start) among nodes with nonzero true increment; z uses eval encode (deterministic mu).",
+  "data_domain": "author_topic",
+  "data": "data/processed/arxiv_cs_embedded_2020-2026_full.csv",
+  "time_dependent_potential": true,
+  "phi_year_min": 2022,
+  "phi_year_max": 2025,
+  "topic_column": "topic",
+  "holdout_test_year": null,
+  "years": [
+    2022,
+    2023,
+    2024,
+    2025
+  ],
+  "seed": 42,
+  "epochs": 2,
+  "hidden_dim": 128,
+  "latent_dim": 2,
+  "link_score_mode": "distance",
+  "cope_density_calibrated": false,
+  "cope_density_log_weight": 1.0,
+  "cope_density_ema_momentum": 0.05,
+  "loss": {
+    "beta": 0.01,
+    "pos_weight": 5.0,
+    "latent_pred_weight": 1.0,
+    "future_link_weight": 10.0,
+    "potential_weight": 0.01,
+    "trajectory_weight": 0.05,
+    "num_neg_recon": 800,
+    "num_neg_future": 400,
+    "loss_aux_warmup_epochs": 0
+  },
+  "pnode_history_len": 1,
+  "pnode_ode_method": "dopri5",
+  "pnode_ode_n_steps": 4,
+  "optuna_best_json": null,
+  "optuna_best_json_map": null,
+  "optuna_meta": null,
+  "optuna_meta_by_method": {},
+  "optuna_best_params_by_method": {},
+  "cope_optuna_best_params": null,
+  "results": [
+    {
+      "label": "Static",
+      "key": "static",
+      "best_val_auc": 0.661034888888889,
+      "final_val_auc": 0.6599617777777778,
+      "final_val_ap": 0.6681501838489723,
+      "final_val_ece": 0.1752878540423637,
+      "train_split_val_auc": 0.6599617777777778,
+      "train_split_val_ap": 0.6681501838489723,
+      "train_split_val_ece": 0.1752878540423637,
+      "val_auc_per_epoch": [
+        0.661034888888889,
+        0.6599617777777778
+      ],
+      "train_loss_per_epoch": [
+        136.31092325846353,
+        74.70029067993164
+      ],
+      "train_components_per_epoch": {
+        "recon": [
+          1.7935738166173298,
+          1.1995128393173218
+        ],
+        "kl": [
+          0.0007177664859530827,
+          0.0034598741525163255
+        ],
+        "latent_pred": [
+          1.2733118136723836,
+          0.6262621084849039
+        ],
+        "future_link": [
+          133.24332173665366,
+          72.8710568745931
+        ],
+        "potential": [
+          0.0,
+          0.0
+        ],
+        "trajectory": [
+          0.0,
+          0.0
+        ]
+      },
+      "last_epoch_train_breakdown": {
+        "total": 74.70029067993164,
+        "recon": 1.1995128393173218,
+        "kl": 0.0034598741525163255,
+        "latent_pred": 0.6262621084849039,
+        "future_link": 72.8710568745931,
+        "potential": 0.0,
+        "trajectory": 0.0
+      }
+    },
+    {
+      "label": "RNN+VGAE",
+      "key": "rnn",
+      "best_val_auc": 0.6526015555555555,
+      "final_val_auc": 0.6526015555555555,
+      "final_val_ap": 0.5990805650548907,
+      "final_val_ece": 0.1752955293097621,
+      "train_split_val_auc": 0.6526015555555555,
+      "train_split_val_ap": 0.5990805650548907,
+      "train_split_val_ece": 0.1752955293097621,
+      "val_auc_per_epoch": [
+        0.5003333333333333,
+        0.6526015555555555
+      ],
+      "train_loss_per_epoch": [
+        30.49883778889974,
+        29.982921600341797
+      ],
+      "train_components_per_epoch": {
+        "recon": [
+          1.653111457824707,
+          0.9039326707522074
+        ],
+        "kl": [
+          0.0009027662260147432,
+          0.00630524739002188
+        ],
+        "latent_pred": [
+          0.05391567448774973,
+          0.3039290855328242
+        ],
+        "future_link": [
+          28.79090754191081,
+          28.768754323323567
+        ],
+        "potential": [
+          0.0,
+          0.0
+        ],
+        "trajectory": [
+          0.0,
+          0.0
+        ]
+      },
+      "last_epoch_train_breakdown": {
+        "total": 29.982921600341797,
+        "recon": 0.9039326707522074,
+        "kl": 0.00630524739002188,
+        "latent_pred": 0.3039290855328242,
+        "future_link": 28.768754323323567,
+        "potential": 0.0,
+        "trajectory": 0.0
+      }
+    },
+    {
+      "label": "NeuralODE",
+      "key": "neural_ode",
+      "best_val_auc": 0.6589637777777778,
+      "final_val_auc": 0.6589637777777778,
+      "final_val_ap": 0.6573794169743394,
+      "final_val_ece": 0.1752871340362976,
+      "train_split_val_auc": 0.6589637777777778,
+      "train_split_val_ap": 0.6573794169743394,
+      "train_split_val_ece": 0.1752871340362976,
+      "val_auc_per_epoch": [
+        0.6458286666666666,
+        0.6589637777777778
+      ],
+      "train_loss_per_epoch": [
+        169.3714853922526,
+        69.35370763142903
+      ],
+      "train_components_per_epoch": {
+        "recon": [
+          2.1240593592325845,
+          1.1439103682835896
+        ],
+        "kl": [
+          0.0007623999748223772,
+          0.003705137176439166
+        ],
+        "latent_pred": [
+          1.277474284172058,
+          0.6200014352798462
+        ],
+        "future_link": [
+          165.96918741861978,
+          67.58609135945638
+        ],
+        "potential": [
+          0.0,
+          0.0
+        ],
+        "trajectory": [
+          0.0,
+          0.0
+        ]
+      },
+      "last_epoch_train_breakdown": {
+        "total": 69.35370763142903,
+        "recon": 1.1439103682835896,
+        "kl": 0.003705137176439166,
+        "latent_pred": 0.6200014352798462,
+        "future_link": 67.58609135945638,
+        "potential": 0.0,
+        "trajectory": 0.0
+      }
+    },
+    {
+      "label": "P-NODE",
+      "key": "pnode",
+      "best_val_auc": 0.6612357777777778,
+      "final_val_auc": 0.6612357777777778,
+      "final_val_ap": 0.6859641009356339,
+      "final_val_ece": 0.17528933496628563,
+      "train_split_val_auc": 0.6612357777777778,
+      "train_split_val_ap": 0.6859641009356339,
+      "train_split_val_ece": 0.17528933496628563,
+      "val_auc_per_epoch": [
+        0.6225928888888889,
+        0.6612357777777778
+      ],
+      "train_loss_per_epoch": [
+        120.16085815429688,
+        79.58297602335612
+      ],
+      "train_components_per_epoch": {
+        "recon": [
+          1.5554993947347004,
+          1.2909417549769084
+        ],
+        "kl": [
+          0.0007719333710459372,
+          0.0033942822677393756
+        ],
+        "latent_pred": [
+          1.2303208708763123,
+          0.5734215577443441
+        ],
+        "future_link": [
+          117.33708190917969,
+          77.69342422485352
+        ],
+        "potential": [
+          1.712671708749743e-06,
+          1.043252177623799e-05
+        ],
+        "trajectory": [
+          0.0371780339628458,
+          0.021784232929348946
+        ]
+      },
+      "last_epoch_train_breakdown": {
+        "total": 79.58297602335612,
+        "recon": 1.2909417549769084,
+        "kl": 0.0033942822677393756,
+        "latent_pred": 0.5734215577443441,
+        "future_link": 77.69342422485352,
+        "potential": 1.043252177623799e-05,
+        "trajectory": 0.021784232929348946
+      }
+    }
+  ]
+}

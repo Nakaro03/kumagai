@@ -1,0 +1,104 @@
+{
+  "readme_pipeline": true,
+  "data_domain": "arxiv",
+  "data": "data/processed/arxiv_cs_embedded_2020-2026_full.csv",
+  "time_dependent_potential": false,
+  "phi_year_min": 2020,
+  "phi_year_max": 2025,
+  "holdout_test_year": 2026,
+  "years": [
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025,
+    2026
+  ],
+  "seed": 42,
+  "epochs": 10,
+  "link_score_mode": "distance",
+  "cope_density_calibrated": false,
+  "cope_density_log_weight": 1.0,
+  "cope_density_ema_momentum": 0.05,
+  "loss": {
+    "beta": 0.01,
+    "pos_weight": 5.0,
+    "latent_pred_weight": 1.0,
+    "future_link_weight": 10.0,
+    "potential_weight": 0.01,
+    "trajectory_weight": 0.05,
+    "num_neg_recon": 800,
+    "num_neg_future": 400
+  },
+  "optuna_best_json": null,
+  "optuna_best_json_map": null,
+  "optuna_meta": null,
+  "optuna_meta_by_method": {},
+  "optuna_best_params_by_method": {},
+  "cope_optuna_best_params": null,
+  "results": [
+    {
+      "label": "CoPE-VGAE",
+      "key": "cope",
+      "best_val_auc": 0.5764391111111111,
+      "final_val_auc": 0.5558326666666668,
+      "final_val_ap": 0.5520542585638595,
+      "train_split_val_auc": 0.5673239999999999,
+      "train_split_val_ap": 0.5624706764315468,
+      "val_auc_per_epoch": [
+        0.5170637777777778,
+        0.5456975555555555,
+        0.5306964444444444,
+        0.5026928888888889,
+        0.5405002222222222,
+        0.5412691111111111,
+        0.5427302222222222,
+        0.5485151111111111,
+        0.5764391111111111,
+        0.5669784444444445
+      ],
+      "holdout_test_year": 2026,
+      "holdout_year_prev": 2025,
+      "train_years": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ]
+    },
+    {
+      "label": "P-NODE",
+      "key": "pnode",
+      "best_val_auc": 0.5764482222222223,
+      "final_val_auc": 0.5271277777777778,
+      "final_val_ap": 0.5195823640219779,
+      "train_split_val_auc": 0.5547671111111111,
+      "train_split_val_ap": 0.5356331030959143,
+      "val_auc_per_epoch": [
+        0.5389493333333333,
+        0.5356284444444445,
+        0.5369475555555556,
+        0.5284944444444444,
+        0.5527193333333333,
+        0.5289402222222223,
+        0.5476604444444444,
+        0.5386797777777779,
+        0.5764482222222223,
+        0.5685077777777777
+      ],
+      "holdout_test_year": 2026,
+      "holdout_year_prev": 2025,
+      "train_years": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ]
+    }
+  ]
+}

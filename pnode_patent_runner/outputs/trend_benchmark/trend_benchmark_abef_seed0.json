@@ -1,0 +1,66 @@
+{
+  "results": [
+    {
+      "key": "static",
+      "variant": "static",
+      "link_auc": 0.5718933333333334,
+      "link_ap": 0.533867176617699,
+      "entry_auc": 0.582890625,
+      "entry_ap": 0.534550859789507,
+      "exit_auc": 0.5099765625,
+      "spearman_r": NaN,
+      "spearman_p": NaN,
+      "ndcg_at_10": NaN,
+      "phi_span": NaN
+    },
+    {
+      "key": "neural_ode",
+      "variant": "neural_ode",
+      "link_auc": 0.603224,
+      "link_ap": 0.5713148181715866,
+      "entry_auc": 0.5914101562499999,
+      "entry_ap": 0.546732666201313,
+      "exit_auc": 0.50917578125,
+      "spearman_r": NaN,
+      "spearman_p": NaN,
+      "ndcg_at_10": NaN,
+      "phi_span": NaN
+    },
+    {
+      "key": "pnode",
+      "variant": "pnode",
+      "link_auc": 0.6292695555555556,
+      "link_ap": 0.6030269703030796,
+      "entry_auc": 0.5702265625,
+      "entry_ap": 0.5732642946641521,
+      "exit_auc": 0.52684140625,
+      "spearman_r": NaN,
+      "spearman_p": NaN,
+      "ndcg_at_10": NaN,
+      "phi_span": NaN
+    },
+    {
+      "key": "pnode_pc",
+      "variant": "pnode_pc",
+      "link_auc": 0.5827375555555556,
+      "link_ap": 0.5657316374763082,
+      "entry_auc": 0.48119609375000005,
+      "entry_ap": 0.48081971988379946,
+      "exit_auc": 0.5242703125,
+      "spearman_r": -0.3083258996149806,
+      "spearman_p": 0.08085999182923316,
+      "ndcg_at_10": 0.40774821837864267,
+      "phi_span": 0.028605878353118896
+    }
+  ],
+  "settings": {
+    "year_range": [
+      2022,
+      2025
+    ],
+    "holdout": 2025,
+    "min_papers": 5,
+    "epochs": 30,
+    "seed": 0
+  }
+}

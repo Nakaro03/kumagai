@@ -1,0 +1,29 @@
+{
+  "checkpoint": "pnode_patent_runner/outputs/tap_node/ckpt/tap_node_holdout_seed42.pt",
+  "train_years": [
+    2022,
+    2023,
+    2024
+  ],
+  "test_year": 2025,
+  "n_topics": 33,
+  "kappa": 1.4828917980194092,
+  "b": 0.9933670163154602,
+  "spearman_pull_vs_new_inflow": {
+    "rho": 0.7789169687271466,
+    "p": 9.356588026024867e-08
+  },
+  "spearman_mass_vs_new_inflow": {
+    "rho": 0.8476985366780231,
+    "p": 4.832738329798165e-10
+  },
+  "spearman_logw_vs_new_inflow": {
+    "rho": 0.7756931653767786,
+    "p": 1.1428590152436482e-07
+  },
+  "partial_spearman_pull_given_mass": 0.05312367662524888,
+  "spearman_trend_vs_delta_inflow": {
+    "rho": -0.18120868804304205,
+    "p": 0.3128723755981544
+  }
+}

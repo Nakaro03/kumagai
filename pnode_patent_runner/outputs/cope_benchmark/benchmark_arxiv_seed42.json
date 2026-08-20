@@ -1,0 +1,176 @@
+{
+  "readme_pipeline": true,
+  "data_domain": "arxiv",
+  "data": "data/processed/arxiv_cs_embedded_2020-2026_full.csv",
+  "holdout_test_year": 2024,
+  "years": [
+    2020,
+    2021,
+    2022,
+    2023,
+    2024
+  ],
+  "seed": 42,
+  "epochs": 10,
+  "link_score_mode": "distance",
+  "loss": {
+    "beta": 0.01,
+    "pos_weight": 5.0,
+    "latent_pred_weight": 1.0,
+    "future_link_weight": 10.0,
+    "potential_weight": 0.01,
+    "trajectory_weight": 0.05,
+    "num_neg_recon": 800,
+    "num_neg_future": 400
+  },
+  "optuna_best_json": null,
+  "optuna_meta": null,
+  "cope_optuna_best_params": null,
+  "results": [
+    {
+      "label": "Static",
+      "key": "static",
+      "best_val_auc": 0.5443924444444445,
+      "final_val_auc": 0.527708,
+      "final_val_ap": 0.5209492898669044,
+      "train_split_val_auc": 0.5322075555555555,
+      "train_split_val_ap": 0.5217551784680899,
+      "val_auc_per_epoch": [
+        0.5391962222222222,
+        0.5378415555555556,
+        0.5319931111111111,
+        0.5055762222222222,
+        0.5284368888888888,
+        0.5443924444444445,
+        0.5441266666666666,
+        0.5217162222222222,
+        0.5193575555555555,
+        0.5422624444444445
+      ],
+      "holdout_test_year": 2024,
+      "holdout_year_prev": 2023,
+      "train_years": [
+        2020,
+        2021,
+        2022,
+        2023
+      ]
+    },
+    {
+      "label": "RNN+VGAE",
+      "key": "rnn",
+      "best_val_auc": 0.680658,
+      "final_val_auc": 0.6321406666666667,
+      "final_val_ap": 0.5944506013571049,
+      "train_split_val_auc": 0.6840648888888888,
+      "train_split_val_ap": 0.6372914999813932,
+      "val_auc_per_epoch": [
+        0.5144406666666668,
+        0.5455142222222222,
+        0.592244,
+        0.6144773333333333,
+        0.6263324444444445,
+        0.6262733333333333,
+        0.6284006666666666,
+        0.6252084444444445,
+        0.6485351111111112,
+        0.680658
+      ],
+      "holdout_test_year": 2024,
+      "holdout_year_prev": 2023,
+      "train_years": [
+        2020,
+        2021,
+        2022,
+        2023
+      ]
+    },
+    {
+      "label": "NeuralODE",
+      "key": "neural_ode",
+      "best_val_auc": 0.5543108888888889,
+      "final_val_auc": 0.5315655555555556,
+      "final_val_ap": 0.5216615443611282,
+      "train_split_val_auc": 0.5333624444444445,
+      "train_split_val_ap": 0.5278819658496224,
+      "val_auc_per_epoch": [
+        0.5398826666666667,
+        0.542036,
+        0.5307382222222222,
+        0.5071275555555557,
+        0.5297537777777778,
+        0.5387504444444444,
+        0.5501555555555555,
+        0.5361971111111111,
+        0.5254686666666667,
+        0.5543108888888889
+      ],
+      "holdout_test_year": 2024,
+      "holdout_year_prev": 2023,
+      "train_years": [
+        2020,
+        2021,
+        2022,
+        2023
+      ]
+    },
+    {
+      "label": "P-NODE",
+      "key": "pnode",
+      "best_val_auc": 0.5846853333333334,
+      "final_val_auc": 0.5753033333333334,
+      "final_val_ap": 0.5701769580705194,
+      "train_split_val_auc": 0.5514853333333334,
+      "train_split_val_ap": 0.5384477723536478,
+      "val_auc_per_epoch": [
+        0.532707111111111,
+        0.5348362222222222,
+        0.5360362222222222,
+        0.5467004444444445,
+        0.5486500000000001,
+        0.5648373333333333,
+        0.5799451111111111,
+        0.5846853333333334,
+        0.5640337777777777,
+        0.5501695555555556
+      ],
+      "holdout_test_year": 2024,
+      "holdout_year_prev": 2023,
+      "train_years": [
+        2020,
+        2021,
+        2022,
+        2023
+      ]
+    },
+    {
+      "label": "CoPE-VGAE",
+      "key": "cope",
+      "best_val_auc": 0.570304,
+      "final_val_auc": 0.5389324444444444,
+      "final_val_ap": 0.5363480056525454,
+      "train_split_val_auc": 0.5697019999999999,
+      "train_split_val_ap": 0.5685659727557721,
+      "val_auc_per_epoch": [
+        0.5216662222222221,
+        0.5217953333333334,
+        0.5481528888888889,
+        0.5220606666666667,
+        0.5231206666666668,
+        0.5524735555555556,
+        0.5507088888888889,
+        0.544242,
+        0.547146888888889,
+        0.570304
+      ],
+      "holdout_test_year": 2024,
+      "holdout_year_prev": 2023,
+      "train_years": [
+        2020,
+        2021,
+        2022,
+        2023
+      ]
+    }
+  ]
+}

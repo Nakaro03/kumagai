@@ -1,0 +1,70 @@
+{
+  "results": [
+    {
+      "key": "static",
+      "domain": "energy",
+      "year_start": 2010,
+      "year_end": 2021,
+      "n_topics": 165,
+      "link_auc": 0.8326324283641497,
+      "link_ap": 0.7940235448062261,
+      "entry_auc": 0.7654320987654322,
+      "spearman_r": NaN,
+      "spearman_p": NaN,
+      "ndcg_at_10": NaN,
+      "phi_span": NaN
+    },
+    {
+      "key": "neural_ode",
+      "domain": "energy",
+      "year_start": 2010,
+      "year_end": 2021,
+      "n_topics": 165,
+      "link_auc": 0.8344713340213064,
+      "link_ap": 0.7929716792985585,
+      "entry_auc": 0.7654320987654321,
+      "spearman_r": NaN,
+      "spearman_p": NaN,
+      "ndcg_at_10": NaN,
+      "phi_span": NaN
+    },
+    {
+      "key": "pnode",
+      "domain": "energy",
+      "year_start": 2010,
+      "year_end": 2021,
+      "n_topics": 165,
+      "link_auc": 0.83347429023673,
+      "link_ap": 0.7883769175701998,
+      "entry_auc": 0.7777777777777778,
+      "spearman_r": NaN,
+      "spearman_p": NaN,
+      "ndcg_at_10": NaN,
+      "phi_span": NaN
+    },
+    {
+      "key": "pnode_pc",
+      "domain": "energy",
+      "year_start": 2010,
+      "year_end": 2021,
+      "n_topics": 165,
+      "link_auc": 0.8267898293774878,
+      "link_ap": 0.7692740711877721,
+      "entry_auc": 0.7407407407407407,
+      "spearman_r": -0.281624193819047,
+      "spearman_p": 0.00024784128288757887,
+      "ndcg_at_10": 0.13320574505440316,
+      "phi_span": 0.7073080539703369
+    }
+  ],
+  "settings": {
+    "domain": "energy",
+    "year_start": 2010,
+    "year_end": 2021,
+    "holdout": 2021,
+    "min_events": 200,
+    "epochs": 15,
+    "seed": 0,
+    "use_a": true
+  }
+}

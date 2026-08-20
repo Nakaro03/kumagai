@@ -1,0 +1,7 @@
+{
+  "cope": "pnode_patent_runner/outputs/optuna/best_params_unified_vgae_cope.json",
+  "static": "pnode_patent_runner/outputs/optuna/best_params_optuna_baseline_static.json",
+  "rnn": "pnode_patent_runner/outputs/optuna/best_params_optuna_baseline_rnn.json",
+  "neural_ode": "pnode_patent_runner/outputs/optuna/best_params_optuna_baseline_neural_ode.json",
+  "pnode": "pnode_patent_runner/outputs/optuna/best_params_optuna_baseline_pnode.json"
+}

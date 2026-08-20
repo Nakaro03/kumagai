@@ -1,0 +1,38 @@
+{
+  "readme_pipeline": true,
+  "data_domain": "arxiv",
+  "data": "/home/nakamuraroi/kumagai/notebooks/work/dataset/arxiv_cs_Data/arxiv_cs_embedded_2020-2026.csv",
+  "years": [
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025,
+    2026
+  ],
+  "seed": 1,
+  "epochs": 1,
+  "link_score_mode": "distance",
+  "loss": {
+    "beta": 0.01,
+    "pos_weight": 5.0,
+    "latent_pred_weight": 1.0,
+    "future_link_weight": 10.0,
+    "potential_weight": 0.01,
+    "trajectory_weight": 0.05,
+    "num_neg_recon": 800,
+    "num_neg_future": 400
+  },
+  "results": [
+    {
+      "label": "Static",
+      "key": "static",
+      "best_val_auc": 0.5346115555555555,
+      "final_val_auc": 0.5462077777777778,
+      "val_auc_per_epoch": [
+        0.5346115555555555
+      ]
+    }
+  ]
+}

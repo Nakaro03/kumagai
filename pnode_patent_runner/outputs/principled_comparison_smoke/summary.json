@@ -1,0 +1,76 @@
+{
+  "models": [
+    "Static",
+    "VGRNN",
+    "StandardGODE",
+    "P-NODE",
+    "UnifiedVGAE"
+  ],
+  "benchmark_settings": {
+    "latent_dim": 16,
+    "hidden_dim": 128,
+    "decoder": "dot",
+    "cosine_logit_scale": 5.0,
+    "unified_potential_weight": 0.01,
+    "unified_trajectory_weight": 0.05
+  },
+  "final_scores": {
+    "Static": {
+      "auc": [
+        0.432288
+      ],
+      "mrr": [
+        0.024053254299067475
+      ]
+    },
+    "VGRNN": {
+      "auc": [
+        0.42001599999999994
+      ],
+      "mrr": [
+        0.02254130345300561
+      ]
+    },
+    "StandardGODE": {
+      "auc": [
+        0.48338400000000004
+      ],
+      "mrr": [
+        0.0402442581532543
+      ]
+    },
+    "P-NODE": {
+      "auc": [
+        0.504564
+      ],
+      "mrr": [
+        0.038353018254974
+      ]
+    },
+    "UnifiedVGAE": {
+      "auc": [
+        0.466044
+      ],
+      "mrr": [
+        0.048155079109198945
+      ]
+    }
+  },
+  "training_times": {
+    "Static": [
+      0.5301222801208496
+    ],
+    "VGRNN": [
+      0.8001382350921631
+    ],
+    "StandardGODE": [
+      0.40947961807250977
+    ],
+    "P-NODE": [
+      0.46015238761901855
+    ],
+    "UnifiedVGAE": [
+      7.507330894470215
+    ]
+  }
+}

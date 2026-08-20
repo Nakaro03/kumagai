@@ -1,0 +1,27 @@
+{
+  "created_at_utc": "2026-07-22T10:16:39.071391+00:00",
+  "method": "dual_force_v2",
+  "data_domain": "agrifood",
+  "csv_path": "data/processed/bipartite_agrifood.csv",
+  "year_range": [
+    2017,
+    2021
+  ],
+  "seed": 7,
+  "epochs": 10,
+  "holdout_test_year": 2021,
+  "config": {
+    "hidden_dim": 128,
+    "latent_dim": 2,
+    "gamma_init": 1.0,
+    "link_score_mode": "distance",
+    "d_scale_mode": "zscore",
+    "renorm_masked_attention": false
+  },
+  "dual_force_final_val_auc": 0.8612866666666668,
+  "dual_force_final_val_ap": 0.8170052275018127,
+  "dual_force_final_val_ece": 0.18478660460916518,
+  "learned_scalars": {
+    "gamma": 0.9931137561798096
+  }
+}

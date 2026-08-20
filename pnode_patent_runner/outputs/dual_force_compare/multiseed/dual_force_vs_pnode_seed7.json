@@ -1,0 +1,27 @@
+{
+  "created_at_utc": "2026-07-05T09:32:47.546238+00:00",
+  "data_domain": "author_topic",
+  "data": "data/processed/arxiv_cs_embedded_2020-2026_full.csv",
+  "year_range": [
+    2022,
+    2025
+  ],
+  "seed": 7,
+  "epochs": 20,
+  "dual_force_config": {
+    "hidden_dim": 128,
+    "latent_dim": 2,
+    "gamma": 1.0,
+    "link_score_mode": "distance"
+  },
+  "dual_force_final_val_auc": 0.6031124444444445,
+  "dual_force_final_val_ap": 0.5547239915184994,
+  "dual_force_final_val_ece": 0.17476022773757482,
+  "pnode_b_plus_d_reference": {
+    "final_val_auc": 0.5948466666666666,
+    "final_val_ap": 0.5707957867182066,
+    "final_val_ece": 0.17728817840521072,
+    "source_json": "pnode_patent_runner/outputs/dual_force_compare/multiseed/pnode_baselines_seed7.json"
+  },
+  "note": "P-NODE (B+D) 参照行は学習 epoch 等が本実行と異なる場合があります。厳密比較は同一 `epochs` でベンチを再実行し JSON を揃えてください。"
+}

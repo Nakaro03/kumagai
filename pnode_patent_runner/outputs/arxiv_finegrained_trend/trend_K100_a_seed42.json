@@ -1,0 +1,60 @@
+{
+  "results": [
+    {
+      "key": "static",
+      "K": 100,
+      "n_topics": 99,
+      "link_auc": 0.46018777777777775,
+      "entry_auc": 0.46634921875,
+      "spearman_r": NaN,
+      "spearman_p": NaN,
+      "ndcg_at_10": NaN,
+      "phi_span": NaN
+    },
+    {
+      "key": "neural_ode",
+      "K": 100,
+      "n_topics": 99,
+      "link_auc": 0.500786,
+      "entry_auc": 0.5005234375000001,
+      "spearman_r": NaN,
+      "spearman_p": NaN,
+      "ndcg_at_10": NaN,
+      "phi_span": NaN
+    },
+    {
+      "key": "pnode",
+      "K": 100,
+      "n_topics": 99,
+      "link_auc": 0.3992684444444445,
+      "entry_auc": 0.42386328124999995,
+      "spearman_r": NaN,
+      "spearman_p": NaN,
+      "ndcg_at_10": NaN,
+      "phi_span": NaN
+    },
+    {
+      "key": "pnode_pc",
+      "K": 100,
+      "n_topics": 99,
+      "link_auc": 0.43494777777777777,
+      "entry_auc": 0.42155546875,
+      "spearman_r": 0.31575757575757574,
+      "spearman_p": 0.0014539904021830254,
+      "ndcg_at_10": 0.021038798946478362,
+      "phi_span": 0.004839599132537842
+    }
+  ],
+  "settings": {
+    "K": 100,
+    "year_range": [
+      2022,
+      2025
+    ],
+    "holdout": 2025,
+    "min_papers": 5,
+    "epochs": 20,
+    "seed": 42,
+    "use_a": true
+  }
+}

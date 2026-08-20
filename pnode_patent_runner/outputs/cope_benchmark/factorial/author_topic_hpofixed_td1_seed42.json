@@ -1,0 +1,148 @@
+{
+  "readme_pipeline": true,
+  "data_domain": "author_topic",
+  "data": "data/processed/arxiv_cs_embedded_2020-2026_full.csv",
+  "time_dependent_potential": true,
+  "phi_year_min": 2020,
+  "phi_year_max": 2026,
+  "topic_column": "topic",
+  "holdout_test_year": null,
+  "years": [
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025,
+    2026
+  ],
+  "seed": 42,
+  "epochs": 10,
+  "link_score_mode": "distance",
+  "cope_density_calibrated": false,
+  "cope_density_log_weight": 1.0,
+  "cope_density_ema_momentum": 0.05,
+  "loss": {
+    "beta": 0.01,
+    "pos_weight": 5.0,
+    "latent_pred_weight": 1.0,
+    "future_link_weight": 10.0,
+    "potential_weight": 0.01,
+    "trajectory_weight": 0.05,
+    "num_neg_recon": 800,
+    "num_neg_future": 400
+  },
+  "optuna_best_json": null,
+  "optuna_best_json_map": null,
+  "optuna_meta": null,
+  "optuna_meta_by_method": {},
+  "optuna_best_params_by_method": {},
+  "cope_optuna_best_params": null,
+  "results": [
+    {
+      "label": "Static",
+      "key": "static",
+      "best_val_auc": 0.7795637777777777,
+      "final_val_auc": 0.776942888888889,
+      "final_val_ap": 0.7142992185391408,
+      "train_split_val_auc": 0.776942888888889,
+      "train_split_val_ap": 0.7142992185391408,
+      "val_auc_per_epoch": [
+        0.6395595555555555,
+        0.626824,
+        0.6335275555555556,
+        0.5850777777777777,
+        0.627582,
+        0.7074442222222221,
+        0.6759264444444445,
+        0.7724237777777777,
+        0.7795637777777777,
+        0.7730395555555555
+      ]
+    },
+    {
+      "label": "RNN+VGAE",
+      "key": "rnn",
+      "best_val_auc": 0.8875251111111111,
+      "final_val_auc": 0.8708666666666667,
+      "final_val_ap": 0.8401568235412531,
+      "train_split_val_auc": 0.8708666666666667,
+      "train_split_val_ap": 0.8401568235412531,
+      "val_auc_per_epoch": [
+        0.6724562222222221,
+        0.6889117777777778,
+        0.7872126666666667,
+        0.8490111111111112,
+        0.8556,
+        0.8505886666666667,
+        0.867825111111111,
+        0.8582884444444444,
+        0.8875251111111111,
+        0.8788224444444445
+      ]
+    },
+    {
+      "label": "NeuralODE",
+      "key": "neural_ode",
+      "best_val_auc": 0.7302633333333333,
+      "final_val_auc": 0.7319408888888889,
+      "final_val_ap": 0.6764366851955009,
+      "train_split_val_auc": 0.7319408888888889,
+      "train_split_val_ap": 0.6764366851955009,
+      "val_auc_per_epoch": [
+        0.650646,
+        0.6429626666666667,
+        0.6314775555555555,
+        0.5838528888888889,
+        0.6207424444444445,
+        0.7040804444444445,
+        0.6629897777777778,
+        0.7203097777777778,
+        0.728309111111111,
+        0.7302633333333333
+      ]
+    },
+    {
+      "label": "P-NODE",
+      "key": "pnode",
+      "best_val_auc": 0.7679257777777777,
+      "final_val_auc": 0.7582760000000001,
+      "final_val_ap": 0.704296957321137,
+      "train_split_val_auc": 0.7582760000000001,
+      "train_split_val_ap": 0.704296957321137,
+      "val_auc_per_epoch": [
+        0.6498324444444445,
+        0.6097617777777777,
+        0.614816,
+        0.6062573333333333,
+        0.6552842222222222,
+        0.6885968888888888,
+        0.6707595555555557,
+        0.7542148888888889,
+        0.7679257777777777,
+        0.7515117777777777
+      ]
+    },
+    {
+      "label": "CoPE-VGAE",
+      "key": "cope",
+      "best_val_auc": 0.808926888888889,
+      "final_val_auc": 0.7960128888888888,
+      "final_val_ap": 0.7440193149406495,
+      "train_split_val_auc": 0.7960128888888888,
+      "train_split_val_ap": 0.7440193149406495,
+      "val_auc_per_epoch": [
+        0.6307893333333333,
+        0.5527742222222222,
+        0.5239933333333334,
+        0.5561393333333333,
+        0.6168702222222222,
+        0.6866595555555555,
+        0.7344264444444444,
+        0.7446048888888889,
+        0.7943317777777776,
+        0.808926888888889
+      ]
+    }
+  ]
+}

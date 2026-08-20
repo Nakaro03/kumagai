@@ -1,0 +1,53 @@
+{
+  "created_at_utc": "2026-07-05T10:59:54.418118+00:00",
+  "method": "tap_node",
+  "data_domain": "author_topic",
+  "data": "data/processed/arxiv_cs_embedded_2020-2026_full.csv",
+  "year_range": [
+    2022,
+    2025
+  ],
+  "seed": 123,
+  "epochs": 20,
+  "tap_node_config": {
+    "hidden_dim": 128,
+    "latent_dim": 2,
+    "kappa_init": 1.0,
+    "b_init": 0.5,
+    "log_h_init": 0.0,
+    "link_score_mode": "distance"
+  },
+  "tap_node_final_val_auc": 0.7059664444444445,
+  "tap_node_final_val_ap": 0.6789480924146574,
+  "tap_node_final_val_ece": 0.17490919043046216,
+  "learned_scalars": {
+    "kappa": 1.700196385383606,
+    "b": 1.279093623161316,
+    "h": 0.32782891392707825,
+    "alpha": 0.35846036672592163
+  },
+  "baselines_reference": {
+    "static": {
+      "final_val_auc": 0.5889504444444444,
+      "final_val_ap": 0.5510220536655408,
+      "final_val_ece": 0.17703477253226674
+    },
+    "neural_ode": {
+      "final_val_auc": 0.49966666666666665,
+      "final_val_ap": 0.5,
+      "final_val_ece": 0.0003679467436264231
+    },
+    "pnode": {
+      "final_val_auc": 0.6671093333333333,
+      "final_val_ap": 0.6442492622015704,
+      "final_val_ece": 0.1773935641951958
+    },
+    "source_json": "pnode_patent_runner/outputs/dual_force_compare/multiseed/pnode_baselines_seed123.json"
+  },
+  "dual_force_reference": {
+    "final_val_auc": 0.6526260000000002,
+    "final_val_ap": 0.6223198462070717,
+    "final_val_ece": 0.1749565946904701,
+    "source_json": "pnode_patent_runner/outputs/dual_force_compare/multiseed/dual_force_vs_pnode_seed123.json"
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "results": [
+    {
+      "key": "static",
+      "domain": "agrifood",
+      "year_start": 2010,
+      "year_end": 2021,
+      "n_topics": 903,
+      "link_auc": 0.9322223601498572,
+      "link_ap": 0.8695989116341276,
+      "entry_auc": 0.9041935047970813,
+      "spearman_r": NaN,
+      "spearman_p": NaN,
+      "ndcg_at_10": NaN,
+      "phi_span": NaN
+    },
+    {
+      "key": "neural_ode",
+      "domain": "agrifood",
+      "year_start": 2010,
+      "year_end": 2021,
+      "n_topics": 903,
+      "link_auc": 0.9368357003750502,
+      "link_ap": 0.8853482782252997,
+      "entry_auc": 0.9043286338453222,
+      "spearman_r": NaN,
+      "spearman_p": NaN,
+      "ndcg_at_10": NaN,
+      "phi_span": NaN
+    },
+    {
+      "key": "pnode",
+      "domain": "agrifood",
+      "year_start": 2010,
+      "year_end": 2021,
+      "n_topics": 903,
+      "link_auc": 0.9317929755942702,
+      "link_ap": 0.8857056738156346,
+      "entry_auc": 0.9078419890995901,
+      "spearman_r": NaN,
+      "spearman_p": NaN,
+      "ndcg_at_10": NaN,
+      "phi_span": NaN
+    },
+    {
+      "key": "pnode_pc",
+      "domain": "agrifood",
+      "year_start": 2010,
+      "year_end": 2021,
+      "n_topics": 903,
+      "link_auc": 0.9375540546315535,
+      "link_ap": 0.8898885202592576,
+      "entry_auc": 0.9048691500382866,
+      "spearman_r": 0.000432924503192178,
+      "spearman_p": 0.9896346988389734,
+      "ndcg_at_10": 0.17581794129950196,
+      "phi_span": 1.651977300643921
+    }
+  ],
+  "settings": {
+    "domain": "agrifood",
+    "year_start": 2010,
+    "year_end": 2021,
+    "holdout": 2021,
+    "min_events": 200,
+    "epochs": 15,
+    "seed": 42,
+    "use_a": true
+  }
+}

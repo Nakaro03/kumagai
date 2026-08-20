@@ -1,0 +1,246 @@
+{
+  "readme_pipeline": true,
+  "data_domain": "patent",
+  "data": "data/processed/topic_info3.csv",
+  "holdout_test_year": null,
+  "years": [
+    2010,
+    2011,
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+  ],
+  "seed": 42,
+  "epochs": 5,
+  "link_score_mode": "distance",
+  "loss": {
+    "beta": 0.01,
+    "pos_weight": 5.0,
+    "latent_pred_weight": 1.0,
+    "future_link_weight": 10.0,
+    "potential_weight": 0.01,
+    "trajectory_weight": 0.05,
+    "num_neg_recon": 800,
+    "num_neg_future": 400
+  },
+  "optuna_best_json": "/home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808/best_params_cope.json",
+  "optuna_best_json_map": "/home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808/optuna_paths_by_method.json",
+  "optuna_meta": {
+    "study_name": "unified_vgae_cope",
+    "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+    "best_value": 0.6182275497626004,
+    "best_trial_number": 2,
+    "space": "minimal",
+    "cope_link_score": "distance"
+  },
+  "optuna_meta_by_method": {
+    "cope": {
+      "study_name": "unified_vgae_cope",
+      "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+      "best_value": 0.6182275497626004,
+      "best_trial_number": 2,
+      "space": "minimal",
+      "cope_link_score": "distance"
+    },
+    "neural_ode": {
+      "study_name": "optuna_baseline_neural_ode",
+      "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+      "best_value": 0.6242039125273924,
+      "best_trial_number": 2,
+      "space": "minimal",
+      "cope_link_score": "distance"
+    },
+    "pnode": {
+      "study_name": "optuna_baseline_pnode",
+      "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+      "best_value": 0.6270330190832725,
+      "best_trial_number": 4,
+      "space": "minimal",
+      "cope_link_score": "distance"
+    },
+    "rnn": {
+      "study_name": "optuna_baseline_rnn",
+      "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+      "best_value": 0.6769069005661067,
+      "best_trial_number": 4,
+      "space": "minimal",
+      "cope_link_score": "distance"
+    },
+    "static": {
+      "study_name": "optuna_baseline_static",
+      "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+      "best_value": 0.6149775725894814,
+      "best_trial_number": 0,
+      "space": "minimal",
+      "cope_link_score": "distance"
+    }
+  },
+  "optuna_best_params_by_method": {
+    "cope": {
+      "lr": 0.0013218583462058368,
+      "beta": 0.014925083536945693,
+      "pos_weight": 4.610561080420313,
+      "latent_pred_weight": 0.8761328453635061,
+      "future_link_weight": 9.659765775490353,
+      "potential_weight": 0.014880208659275137,
+      "trajectory_weight": 0.02217598961611118,
+      "w_pot_init": 0.07488995178884374,
+      "hidden_dim": 192
+    },
+    "neural_ode": {
+      "lr": 0.0006173549753583337,
+      "beta": 0.014480813945575436,
+      "pos_weight": 3.033133906719611,
+      "latent_pred_weight": 1.4210565501187231,
+      "future_link_weight": 12.329931367277663,
+      "potential_weight": 0.010733763995673534,
+      "trajectory_weight": 0.070986698373877,
+      "w_pot_init": 0.11294526443261113,
+      "hidden_dim": 256
+    },
+    "pnode": {
+      "lr": 0.0012633874300885632,
+      "beta": 0.009722996022739416,
+      "pos_weight": 5.063288666503871,
+      "latent_pred_weight": 1.0750216264014671,
+      "future_link_weight": 9.796812560819244,
+      "potential_weight": 0.01987560266490604,
+      "trajectory_weight": 0.04285158167727261,
+      "w_pot_init": 0.03857711820104426,
+      "hidden_dim": 256
+    },
+    "rnn": {
+      "lr": 0.0009905055318066617,
+      "beta": 0.008840446599041143,
+      "pos_weight": 4.6939981138700775,
+      "latent_pred_weight": 0.8767606980042856,
+      "future_link_weight": 10.000140775819744,
+      "potential_weight": 0.008708105079670092,
+      "trajectory_weight": 0.027916443750587883,
+      "w_pot_init": 0.04978379229722865,
+      "hidden_dim": 128,
+      "rnn_history_len": 2
+    },
+    "static": {
+      "lr": 0.0013898029741451548,
+      "beta": 0.007972182849829812,
+      "pos_weight": 3.910207261408723,
+      "latent_pred_weight": 1.1397118950656444,
+      "future_link_weight": 14.733961385565008,
+      "potential_weight": 0.006025986990141593,
+      "trajectory_weight": 0.04225424190094472,
+      "w_pot_init": 0.03583014996959423,
+      "hidden_dim": 192
+    }
+  },
+  "cope_optuna_best_params": {
+    "lr": 0.0013218583462058368,
+    "beta": 0.014925083536945693,
+    "pos_weight": 4.610561080420313,
+    "latent_pred_weight": 0.8761328453635061,
+    "future_link_weight": 9.659765775490353,
+    "potential_weight": 0.014880208659275137,
+    "trajectory_weight": 0.02217598961611118,
+    "w_pot_init": 0.07488995178884374,
+    "hidden_dim": 192
+  },
+  "results": [
+    {
+      "label": "Static",
+      "key": "static",
+      "best_val_auc": 0.712135911249087,
+      "final_val_auc": 0.712135911249087,
+      "final_val_ap": 0.6789178395799607,
+      "train_split_val_auc": 0.712135911249087,
+      "train_split_val_ap": 0.6789178395799607,
+      "val_auc_per_epoch": [
+        0.5525503332724617,
+        0.6374092631482835,
+        0.6437565627282688,
+        0.6547833728999269,
+        0.712135911249087
+      ],
+      "optuna_tuned": true,
+      "optuna_tuned_method_key": "static"
+    },
+    {
+      "label": "RNN+VGAE",
+      "key": "rnn",
+      "best_val_auc": 0.7256479980825421,
+      "final_val_auc": 0.7256479980825421,
+      "final_val_ap": 0.6543783513315953,
+      "train_split_val_auc": 0.7256479980825421,
+      "train_split_val_ap": 0.6543783513315953,
+      "val_auc_per_epoch": [
+        0.5884284833820307,
+        0.612255467037984,
+        0.6128275657414171,
+        0.6934678026844412,
+        0.7256479980825421
+      ],
+      "optuna_tuned": true,
+      "optuna_tuned_method_key": "rnn"
+    },
+    {
+      "label": "NeuralODE",
+      "key": "neural_ode",
+      "best_val_auc": 0.6933108678780131,
+      "final_val_auc": 0.6933108678780131,
+      "final_val_ap": 0.6587862867188107,
+      "train_split_val_auc": 0.6933108678780131,
+      "train_split_val_ap": 0.6587862867188107,
+      "val_auc_per_epoch": [
+        0.5723012920014608,
+        0.5651479181884588,
+        0.6031418348246896,
+        0.6433000251095691,
+        0.6933108678780131
+      ],
+      "optuna_tuned": true,
+      "optuna_tuned_method_key": "neural_ode"
+    },
+    {
+      "label": "P-NODE",
+      "key": "pnode",
+      "best_val_auc": 0.6086745000913075,
+      "final_val_auc": 0.6086745000913075,
+      "final_val_ap": 0.5751720535588057,
+      "train_split_val_auc": 0.6086745000913075,
+      "train_split_val_ap": 0.5751720535588057,
+      "val_auc_per_epoch": [
+        0.5835449575420014,
+        0.5232463248721695,
+        0.47001689189189194,
+        0.5805660495799854,
+        0.6086745000913075
+      ],
+      "optuna_tuned": true,
+      "optuna_tuned_method_key": "pnode"
+    },
+    {
+      "label": "CoPE-VGAE",
+      "key": "cope",
+      "best_val_auc": 0.6328239134404675,
+      "final_val_auc": 0.6328239134404675,
+      "final_val_ap": 0.5796074600788093,
+      "train_split_val_auc": 0.6328239134404675,
+      "train_split_val_ap": 0.5796074600788093,
+      "val_auc_per_epoch": [
+        0.5725737878926224,
+        0.5623559053140978,
+        0.5435593955441929,
+        0.5276490595325054,
+        0.6328239134404675
+      ],
+      "optuna_tuned": true,
+      "optuna_tuned_method_key": "cope",
+      "optuna_tuned_cope": true
+    }
+  ]
+}

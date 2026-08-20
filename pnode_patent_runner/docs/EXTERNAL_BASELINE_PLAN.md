@@ -38,4 +38,6 @@
 
 「本稿の主結果は同一実装パイプライン内比較に限定し、**Appendix X** で EvolveGCN 系を **同一サンプリング**で報告する」または「外部ベースラインは **並行作業**であり、カメラレディ版では `rnn` を最強内部対照とする」**のどちらかを必ず一文で宣言**する。
 
-関連: [TREND_PREDICTION_EXPERIMENT.md](TREND_PREDICTION_EXPERIMENT.md)、[PAPER_WORKFLOW.md](../PAPER_WORKFLOW.md)。
+各比較手法の**定義・出典論文・引用**（実装通りの更新式、Web 照合済み DOI/arXiv、実装と正準手法の差分 5 点）は [COMPARISON_METHODS.md](COMPARISON_METHODS.md) にまとめた。本ページの「候補手法の選定・引用」タスクの成果物はそこを参照。
+
+関連: [COMPARISON_METHODS.md](COMPARISON_METHODS.md)、[TREND_PREDICTION_EXPERIMENT.md](TREND_PREDICTION_EXPERIMENT.md)、[PAPER_WORKFLOW.md](../PAPER_WORKFLOW.md)。

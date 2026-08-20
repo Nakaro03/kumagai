@@ -1,0 +1,147 @@
+{
+  "readme_pipeline": true,
+  "data_domain": "arxiv",
+  "data": "data/processed/arxiv_cs_embedded_2020-2026_full.csv",
+  "time_dependent_potential": true,
+  "phi_year_min": 2020,
+  "phi_year_max": 2026,
+  "holdout_test_year": null,
+  "years": [
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025,
+    2026
+  ],
+  "seed": 42,
+  "epochs": 10,
+  "link_score_mode": "distance",
+  "cope_density_calibrated": false,
+  "cope_density_log_weight": 1.0,
+  "cope_density_ema_momentum": 0.05,
+  "loss": {
+    "beta": 0.01,
+    "pos_weight": 5.0,
+    "latent_pred_weight": 1.0,
+    "future_link_weight": 10.0,
+    "potential_weight": 0.01,
+    "trajectory_weight": 0.05,
+    "num_neg_recon": 800,
+    "num_neg_future": 400
+  },
+  "optuna_best_json": null,
+  "optuna_best_json_map": null,
+  "optuna_meta": null,
+  "optuna_meta_by_method": {},
+  "optuna_best_params_by_method": {},
+  "cope_optuna_best_params": null,
+  "results": [
+    {
+      "label": "Static",
+      "key": "static",
+      "best_val_auc": 0.546974,
+      "final_val_auc": 0.5557795555555556,
+      "final_val_ap": 0.54189609506901,
+      "train_split_val_auc": 0.5557795555555556,
+      "train_split_val_ap": 0.54189609506901,
+      "val_auc_per_epoch": [
+        0.5369186666666667,
+        0.5421504444444444,
+        0.5328882222222222,
+        0.5260973333333333,
+        0.5180326666666667,
+        0.5391971111111111,
+        0.5370666666666668,
+        0.5291575555555555,
+        0.5407657777777777,
+        0.546974
+      ]
+    },
+    {
+      "label": "RNN+VGAE",
+      "key": "rnn",
+      "best_val_auc": 0.6719791111111111,
+      "final_val_auc": 0.6756004444444446,
+      "final_val_ap": 0.640599554011887,
+      "train_split_val_auc": 0.6756004444444446,
+      "train_split_val_ap": 0.640599554011887,
+      "val_auc_per_epoch": [
+        0.5188302222222222,
+        0.5782037777777778,
+        0.6152326666666668,
+        0.651362,
+        0.6183515555555555,
+        0.6564853333333334,
+        0.6719791111111111,
+        0.6649031111111111,
+        0.6458922222222223,
+        0.6652477777777779
+      ]
+    },
+    {
+      "label": "NeuralODE",
+      "key": "neural_ode",
+      "best_val_auc": 0.5524173333333333,
+      "final_val_auc": 0.5463480000000001,
+      "final_val_ap": 0.5307485547285036,
+      "train_split_val_auc": 0.5463480000000001,
+      "train_split_val_ap": 0.5307485547285036,
+      "val_auc_per_epoch": [
+        0.5377193333333333,
+        0.5404664444444445,
+        0.5458295555555556,
+        0.5387066666666667,
+        0.5174033333333333,
+        0.5322984444444444,
+        0.5412726666666667,
+        0.5292822222222223,
+        0.5447364444444445,
+        0.5524173333333333
+      ]
+    },
+    {
+      "label": "P-NODE",
+      "key": "pnode",
+      "best_val_auc": 0.5468093333333334,
+      "final_val_auc": 0.5314317777777777,
+      "final_val_ap": 0.5155075647257662,
+      "train_split_val_auc": 0.5314317777777777,
+      "train_split_val_ap": 0.5155075647257662,
+      "val_auc_per_epoch": [
+        0.5468093333333334,
+        0.5419851111111111,
+        0.5090753333333333,
+        0.5195826666666666,
+        0.5356511111111111,
+        0.536923111111111,
+        0.5400351111111111,
+        0.52049,
+        0.5450146666666666,
+        0.5444897777777777
+      ]
+    },
+    {
+      "label": "CoPE-VGAE",
+      "key": "cope",
+      "best_val_auc": 0.5712659999999999,
+      "final_val_auc": 0.5621437777777778,
+      "final_val_ap": 0.5520012901011602,
+      "train_split_val_auc": 0.5621437777777778,
+      "train_split_val_ap": 0.5520012901011602,
+      "val_auc_per_epoch": [
+        0.5386773333333333,
+        0.5484202222222222,
+        0.5631486666666667,
+        0.5436477777777777,
+        0.5638099999999999,
+        0.5250713333333333,
+        0.5330433333333333,
+        0.5595782222222223,
+        0.5520631111111111,
+        0.5712659999999999
+      ]
+    }
+  ]
+}

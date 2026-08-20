@@ -17,7 +17,9 @@ class DualForceVGAE(nn.Module):
         ode_method="dopri5",
         ode_n_steps=4,
         link_score_mode="cosine",
-        cosine_logit_scale=5.0
+        cosine_logit_scale=5.0,
+        d_scale_mode: str = "raw",
+        renorm_masked_attention: bool = False,
     ):
         super().__init__()
         self.num_nodes = num_nodes
@@ -35,7 +37,9 @@ class DualForceVGAE(nn.Module):
         self.encoder = SharedVGAEEncoder(input_dim, hidden_dim, latent_dim)
         self.temporal_predictor = DualForcePNODEPredictor(
             latent_dim, hidden_dim, gamma=gamma,
-            ode_method=ode_method, ode_n_steps=ode_n_steps
+            ode_method=ode_method, ode_n_steps=ode_n_steps,
+            d_scale_mode=d_scale_mode,
+            renorm_masked_attention=renorm_masked_attention,
         )
         # future_link_auc_scores の履歴長・他モデル識別用
         self.temporal_history_len = 1
@@ -82,14 +86,17 @@ class DualForceVGAE(nn.Module):
         """
         data_t: 遷移元の年の Data（`topic_trend_*` を ODE 場に渡す）。多段ロールアウトでは
         各ステップの年の Data を渡す。
+
+        P_j はトピックノードの潜在ベクトル z_j（当年エンコーダ出力、detach）を使う
+        —— エンコード前の生特徴 x_j ではない（TAP-NODE と同じアンカーの取り方に統一）。
+        D_j は符号付きトレンド 1 個（trend_plus - trend_minus = M_j(t)-M_j(t-1)）。
         """
         z = z_history_list[-1]
         if data_t is not None:
             dtp = data_t.to(z.device, non_blocking=True)
-            p_j = dtp.x[self.num_corps :]
+            d_j = (dtp.topic_trend_plus - dtp.topic_trend_minus).unsqueeze(-1)
             self.temporal_predictor.ode_func.set_topic_info(
-                p_j,
-                dtp.topic_trend_plus.unsqueeze(-1),
-                dtp.topic_trend_minus.unsqueeze(-1),
+                z[self.num_corps :],
+                d_j,
             )
         return self.temporal_predictor(z, self.num_corps, delta_t=1.0)

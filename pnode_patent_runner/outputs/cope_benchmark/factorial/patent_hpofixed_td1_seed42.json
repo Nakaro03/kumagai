@@ -1,0 +1,151 @@
+{
+  "readme_pipeline": true,
+  "data_domain": "patent",
+  "data": "notebooks/work/dataset/topic_info3.csv",
+  "time_dependent_potential": true,
+  "phi_year_min": 2010,
+  "phi_year_max": 2020,
+  "holdout_test_year": null,
+  "years": [
+    2010,
+    2011,
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+  ],
+  "seed": 42,
+  "epochs": 10,
+  "link_score_mode": "distance",
+  "cope_density_calibrated": false,
+  "cope_density_log_weight": 1.0,
+  "cope_density_ema_momentum": 0.05,
+  "loss": {
+    "beta": 0.01,
+    "pos_weight": 5.0,
+    "latent_pred_weight": 1.0,
+    "future_link_weight": 10.0,
+    "potential_weight": 0.01,
+    "trajectory_weight": 0.05,
+    "num_neg_recon": 800,
+    "num_neg_future": 400
+  },
+  "optuna_best_json": null,
+  "optuna_best_json_map": null,
+  "optuna_meta": null,
+  "optuna_meta_by_method": {},
+  "optuna_best_params_by_method": {},
+  "cope_optuna_best_params": null,
+  "results": [
+    {
+      "label": "Static",
+      "key": "static",
+      "best_val_auc": 0.6490837860664719,
+      "final_val_auc": 0.6490837860664719,
+      "final_val_ap": 0.6015892402103181,
+      "train_split_val_auc": 0.6490837860664719,
+      "train_split_val_ap": 0.6015892402103181,
+      "val_auc_per_epoch": [
+        0.5949541179693206,
+        0.5937785336011687,
+        0.5625042800401753,
+        0.5820940239225713,
+        0.5889606350438277,
+        0.6146965166179693,
+        0.6228842334733382,
+        0.6323431222607743,
+        0.631574141709277,
+        0.6490837860664719
+      ]
+    },
+    {
+      "label": "RNN+VGAE",
+      "key": "rnn",
+      "best_val_auc": 0.8271063504382762,
+      "final_val_auc": 0.8271063504382762,
+      "final_val_ap": 0.769795099215017,
+      "train_split_val_auc": 0.8271063504382762,
+      "train_split_val_ap": 0.769795099215017,
+      "val_auc_per_epoch": [
+        0.60179076880935,
+        0.5899650178049672,
+        0.6609651775931336,
+        0.6865512577611396,
+        0.7424585692111029,
+        0.7578495936815193,
+        0.7906033144631117,
+        0.7980562910883857,
+        0.8025588933528123,
+        0.8271063504382762
+      ]
+    },
+    {
+      "label": "NeuralODE",
+      "key": "neural_ode",
+      "best_val_auc": 0.6624817384952519,
+      "final_val_auc": 0.6624817384952519,
+      "final_val_ap": 0.612264383178257,
+      "train_split_val_auc": 0.6624817384952519,
+      "train_split_val_ap": 0.612264383178257,
+      "val_auc_per_epoch": [
+        0.5934033167457997,
+        0.5782020407231555,
+        0.5658883651387874,
+        0.5599890430971513,
+        0.5930038463294376,
+        0.6095604684075968,
+        0.6225218567384952,
+        0.6359240892074506,
+        0.6469894197406867,
+        0.6624817384952519
+      ]
+    },
+    {
+      "label": "P-NODE",
+      "key": "pnode",
+      "best_val_auc": 0.6714997831446311,
+      "final_val_auc": 0.6715012098246895,
+      "final_val_ap": 0.6171657204290157,
+      "train_split_val_auc": 0.6715012098246895,
+      "train_split_val_ap": 0.6171657204290157,
+      "val_auc_per_epoch": [
+        0.6078941060993426,
+        0.5657599639335281,
+        0.5712212951972243,
+        0.5019930720416362,
+        0.5724068663257853,
+        0.5882558550949598,
+        0.5598920288531775,
+        0.6292129862125639,
+        0.6569704734295106,
+        0.6714997831446311
+      ]
+    },
+    {
+      "label": "CoPE-VGAE",
+      "key": "cope",
+      "best_val_auc": 0.6250727606829803,
+      "final_val_auc": 0.6250727606829802,
+      "final_val_ap": 0.5696927956921091,
+      "train_split_val_auc": 0.6250727606829802,
+      "train_split_val_ap": 0.5696927956921091,
+      "val_auc_per_epoch": [
+        0.5718775680241053,
+        0.570380980642805,
+        0.5290400725894813,
+        0.5411953866873631,
+        0.5893829323411249,
+        0.5981484546201606,
+        0.5930323799306063,
+        0.6002456743060628,
+        0.6108815741417093,
+        0.6250727606829803
+      ]
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "created_at_utc": "2026-07-22T16:11:31.740367+00:00",
+  "method": "dual_force_v2",
+  "data_domain": "construction",
+  "csv_path": "data/processed/bipartite_construction.csv",
+  "year_range": [
+    2017,
+    2021
+  ],
+  "seed": 123,
+  "epochs": 10,
+  "holdout_test_year": 2021,
+  "config": {
+    "hidden_dim": 128,
+    "latent_dim": 2,
+    "gamma_init": 1.0,
+    "link_score_mode": "distance",
+    "d_scale_mode": "learnable",
+    "renorm_masked_attention": true
+  },
+  "dual_force_final_val_auc": 0.7017115555555555,
+  "dual_force_final_val_ap": 0.6719660351959628,
+  "dual_force_final_val_ece": 0.16471011639893296,
+  "learned_scalars": {
+    "gamma": 0.9927235245704651,
+    "d_scale": 1.0037131309509277
+  }
+}

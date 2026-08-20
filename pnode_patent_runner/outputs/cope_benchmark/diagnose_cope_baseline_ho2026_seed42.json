@@ -1,0 +1,74 @@
+{
+  "readme_pipeline": true,
+  "data_domain": "arxiv",
+  "data": "data/processed/arxiv_cs_embedded_2020-2026_full.csv",
+  "time_dependent_potential": false,
+  "phi_year_min": 2020,
+  "phi_year_max": 2025,
+  "holdout_test_year": 2026,
+  "years": [
+    2020,
+    2021,
+    2022,
+    2023,
+    2024,
+    2025,
+    2026
+  ],
+  "seed": 42,
+  "epochs": 2,
+  "link_score_mode": "distance",
+  "cope_density_calibrated": false,
+  "cope_density_log_weight": 1.0,
+  "cope_density_ema_momentum": 0.05,
+  "loss": {
+    "beta": 0.01,
+    "pos_weight": 5.0,
+    "latent_pred_weight": 1.0,
+    "future_link_weight": 10.0,
+    "potential_weight": 0.01,
+    "trajectory_weight": 0.05,
+    "num_neg_recon": 800,
+    "num_neg_future": 400
+  },
+  "optuna_best_json": null,
+  "optuna_best_json_map": null,
+  "optuna_meta": null,
+  "optuna_meta_by_method": {},
+  "optuna_best_params_by_method": {},
+  "cope_optuna_best_params": null,
+  "results": [
+    {
+      "label": "CoPE-VGAE",
+      "key": "cope",
+      "best_val_auc": 0.5945119999999999,
+      "final_val_auc": 0.5842802222222223,
+      "final_val_ap": 0.5636818721298871,
+      "train_split_val_auc": 0.5926144444444443,
+      "train_split_val_ap": 0.5664503785061306,
+      "val_auc_per_epoch": [
+        0.5917015555555556,
+        0.5945119999999999
+      ],
+      "last_epoch_train_breakdown": {
+        "total": 54.26489181518555,
+        "recon": 1.8764229774475099,
+        "kl": 0.005879265908151865,
+        "latent_pred": 0.2841022402048111,
+        "future_link": 52.07618026733398,
+        "potential": 2.397601547272643e-05,
+        "trajectory": 0.02228376902639866
+      },
+      "holdout_test_year": 2026,
+      "holdout_year_prev": 2025,
+      "train_years": [
+        2020,
+        2021,
+        2022,
+        2023,
+        2024,
+        2025
+      ]
+    }
+  ]
+}

@@ -1,0 +1,443 @@
+{
+  "readme_pipeline": true,
+  "future_link_ece_n_bins": 15,
+  "eval_horizon_gaps": [],
+  "latent_horizon_metrics_note": "mse/mae: mean over graphs[year_next].active_mask nodes of (z_rollout - mu_encoder). direction_agreement: fraction where sign(||mu||_t-||mu||_{t-k}) equals sign(||z||_pred-||z||_start) among nodes with nonzero true increment; z uses eval encode (deterministic mu).",
+  "data_domain": "construction",
+  "data": "/home/nakamuraroi/kumagai/pnode_patent_runner/outputs/firm_topic_k_sweep/firm_topic_construction_K10.csv",
+  "time_dependent_potential": false,
+  "phi_year_min": 2010,
+  "phi_year_max": 2020,
+  "holdout_test_year": 2021,
+  "years": [
+    2010,
+    2011,
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+  ],
+  "seed": 42,
+  "epochs": 5,
+  "hidden_dim": 64,
+  "latent_dim": 2,
+  "link_score_mode": "distance",
+  "cope_density_calibrated": false,
+  "cope_density_log_weight": 1.0,
+  "cope_density_ema_momentum": 0.05,
+  "loss": {
+    "beta": 0.01,
+    "pos_weight": 5.0,
+    "latent_pred_weight": 1.0,
+    "future_link_weight": 10.0,
+    "potential_weight": 0.01,
+    "trajectory_weight": 0.05,
+    "num_neg_recon": 400,
+    "num_neg_future": 200,
+    "loss_aux_warmup_epochs": 0,
+    "attention_ground_weight": 0.5,
+    "potential_reg_mode": "l2",
+    "trajectory_delta_source": "z",
+    "trajectory_loss_type": "cosine",
+    "trajectory_grad_floor": 0.0,
+    "trajectory_grad_floor_weight": 0.0
+  },
+  "pnode_history_len": 1,
+  "pnode_ode_method": "rk4",
+  "pnode_ode_n_steps": 4,
+  "pnode_potential_feature": "mlp",
+  "pnode_rff_frozen_basis": false,
+  "pnode_density_calibrated": false,
+  "pnode_density_log_weight": 1.0,
+  "pnode_density_ema_momentum": 0.05,
+  "pnode_hist_fuse_mode": "gru",
+  "optuna_best_json": null,
+  "optuna_best_json_map": null,
+  "optuna_meta": null,
+  "optuna_meta_by_method": {},
+  "optuna_best_params_by_method": {},
+  "cope_optuna_best_params": null,
+  "results": [
+    {
+      "label": "Static",
+      "key": "static",
+      "best_val_auc": 0.5289942222222223,
+      "final_val_auc": 0.51495,
+      "final_val_ap": 0.5013073202153442,
+      "final_val_ece": 0.1767839447267272,
+      "train_split_val_auc": 0.5020546666666666,
+      "train_split_val_ap": 0.4959928846600311,
+      "train_split_val_ece": 0.17678371443845475,
+      "val_auc_per_epoch": [
+        0.5289942222222223,
+        0.5222468888888889,
+        0.5196528888888889,
+        0.5137777777777779,
+        0.5020546666666666
+      ],
+      "train_loss_per_epoch": [
+        91.64650688171386,
+        44.57261619567871,
+        35.70212898254395,
+        33.21632308959961,
+        32.53136310577393
+      ],
+      "train_components_per_epoch": {
+        "recon": [
+          1.571219563484192,
+          1.3412096619606018,
+          1.3789766430854797,
+          1.4207118511199952,
+          1.4378358721733093
+        ],
+        "kl": [
+          0.06421339493244886,
+          0.058907358720898625,
+          0.03495742250233889,
+          0.025371060334146024,
+          0.021421965211629868
+        ],
+        "latent_pred": [
+          1.2781047463417052,
+          0.5381950557231903,
+          0.30552549809217455,
+          0.18778226226568223,
+          0.14386919960379602
+        ],
+        "future_link": [
+          88.73296737670898,
+          42.63430404663086,
+          33.98266944885254,
+          31.58245735168457,
+          30.928236198425292
+        ],
+        "potential": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "trajectory": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "density_align": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "attention_ground": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "trend": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "grad_phi_l2": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "last_epoch_train_breakdown": {
+        "total": 32.53136310577393,
+        "recon": 1.4378358721733093,
+        "kl": 0.021421965211629868,
+        "latent_pred": 0.14386919960379602,
+        "future_link": 30.928236198425292,
+        "potential": 0.0,
+        "trajectory": 0.0,
+        "density_align": 0.0,
+        "attention_ground": 0.0,
+        "trend": 0.0,
+        "grad_phi_l2": 0.0
+      },
+      "holdout_test_year": 2021,
+      "holdout_year_prev": 2020,
+      "train_years": [
+        2010,
+        2011,
+        2012,
+        2013,
+        2014,
+        2015,
+        2016,
+        2017,
+        2018,
+        2019,
+        2020
+      ]
+    },
+    {
+      "label": "NeuralODE",
+      "key": "neural_ode",
+      "best_val_auc": 0.5224599999999999,
+      "final_val_auc": 0.501684,
+      "final_val_ap": 0.5023644836615336,
+      "final_val_ece": 0.17671929242438578,
+      "train_split_val_auc": 0.5109102222222222,
+      "train_split_val_ap": 0.5080018757352479,
+      "train_split_val_ece": 0.17671918977991907,
+      "val_auc_per_epoch": [
+        0.5171344444444445,
+        0.5224599999999999,
+        0.5158571111111111,
+        0.5132028888888889,
+        0.5109102222222222
+      ],
+      "train_loss_per_epoch": [
+        92.99949226379394,
+        46.901602554321286,
+        35.74854164123535,
+        32.67202186584473,
+        31.772746276855468
+      ],
+      "train_components_per_epoch": {
+        "recon": [
+          1.5402625918388366,
+          1.2908048987388612,
+          1.3851069331169128,
+          1.4125211119651795,
+          1.4392610669136048
+        ],
+        "kl": [
+          0.06767954397946596,
+          0.06068975143134594,
+          0.03626477494835854,
+          0.028520828112959862,
+          0.025590189918875694
+        ],
+        "latent_pred": [
+          1.358198344707489,
+          0.6232480615377426,
+          0.36225740760564806,
+          0.20897230207920076,
+          0.15392133519053458
+        ],
+        "future_link": [
+          90.03335342407226,
+          44.92686042785645,
+          33.964912796020506,
+          31.022007179260253,
+          30.1539737701416
+        ],
+        "potential": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "trajectory": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "density_align": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "attention_ground": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "trend": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "grad_phi_l2": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "last_epoch_train_breakdown": {
+        "total": 31.772746276855468,
+        "recon": 1.4392610669136048,
+        "kl": 0.025590189918875694,
+        "latent_pred": 0.15392133519053458,
+        "future_link": 30.1539737701416,
+        "potential": 0.0,
+        "trajectory": 0.0,
+        "density_align": 0.0,
+        "attention_ground": 0.0,
+        "trend": 0.0,
+        "grad_phi_l2": 0.0
+      },
+      "holdout_test_year": 2021,
+      "holdout_year_prev": 2020,
+      "train_years": [
+        2010,
+        2011,
+        2012,
+        2013,
+        2014,
+        2015,
+        2016,
+        2017,
+        2018,
+        2019,
+        2020
+      ]
+    },
+    {
+      "label": "P-NODE",
+      "key": "pnode",
+      "best_val_auc": 0.5185766666666667,
+      "final_val_auc": 0.4831391111111111,
+      "final_val_ap": 0.488833301293426,
+      "final_val_ece": 0.17676011053343277,
+      "train_split_val_auc": 0.5042271111111111,
+      "train_split_val_ap": 0.50741002323864,
+      "train_split_val_ece": 0.17676087834138177,
+      "val_auc_per_epoch": [
+        0.5185766666666667,
+        0.5089586666666667,
+        0.51481,
+        0.509812,
+        0.5042271111111111
+      ],
+      "train_loss_per_epoch": [
+        102.47521591186523,
+        43.8427978515625,
+        35.573868942260745,
+        32.73123359680176,
+        31.941822052001953
+      ],
+      "train_components_per_epoch": {
+        "recon": [
+          1.716506338119507,
+          1.3200855374336242,
+          1.3728647470474242,
+          1.410415780544281,
+          1.4434226870536804
+        ],
+        "kl": [
+          0.06627738941460848,
+          0.05900648646056652,
+          0.03684231527149677,
+          0.02874379828572273,
+          0.02710333075374365
+        ],
+        "latent_pred": [
+          1.3259946584701539,
+          0.623495614528656,
+          0.30752226859331133,
+          0.21174258142709732,
+          0.15482658743858338
+        ],
+        "future_link": [
+          99.31848220825195,
+          41.7910717010498,
+          33.81356716156006,
+          31.039237594604494,
+          30.276548004150392
+        ],
+        "potential": [
+          0.00041551238900865427,
+          0.0007179084059316665,
+          0.0004886469658231362,
+          0.00048036179214250296,
+          0.0005947956175077707
+        ],
+        "trajectory": [
+          0.0475399874150753,
+          0.0484205137938261,
+          0.04258438870310784,
+          0.040612615272402765,
+          0.03932569958269596
+        ],
+        "density_align": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "attention_ground": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "trend": [
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ],
+        "grad_phi_l2": [
+          0.33136383071541786,
+          0.708757734298706,
+          0.8554132640361786,
+          1.054450362920761,
+          1.2137328147888184
+        ]
+      },
+      "last_epoch_train_breakdown": {
+        "total": 31.941822052001953,
+        "recon": 1.4434226870536804,
+        "kl": 0.02710333075374365,
+        "latent_pred": 0.15482658743858338,
+        "future_link": 30.276548004150392,
+        "potential": 0.0005947956175077707,
+        "trajectory": 0.03932569958269596,
+        "density_align": 0.0,
+        "attention_ground": 0.0,
+        "trend": 0.0,
+        "grad_phi_l2": 1.2137328147888184
+      },
+      "holdout_test_year": 2021,
+      "holdout_year_prev": 2020,
+      "train_years": [
+        2010,
+        2011,
+        2012,
+        2013,
+        2014,
+        2015,
+        2016,
+        2017,
+        2018,
+        2019,
+        2020
+      ]
+    }
+  ]
+}

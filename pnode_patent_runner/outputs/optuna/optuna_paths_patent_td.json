@@ -1,0 +1,7 @@
+{
+  "cope": "pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808/best_params_cope.json",
+  "static": "pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808/best_params_static.json",
+  "rnn": "pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808/best_params_rnn.json",
+  "neural_ode": "pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808/best_params_neural_ode.json",
+  "pnode": "pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808/best_params_pnode.json"
+}

@@ -1,0 +1,140 @@
+{
+  "readme_pipeline": true,
+  "future_link_ece_n_bins": 15,
+  "eval_horizon_gaps": [],
+  "latent_horizon_metrics_note": "mse/mae: mean over graphs[year_next].active_mask nodes of (z_rollout - mu_encoder). direction_agreement: fraction where sign(||mu||_t-||mu||_{t-k}) equals sign(||z||_pred-||z||_start) among nodes with nonzero true increment; z uses eval encode (deterministic mu).",
+  "data_domain": "construction",
+  "data": "/home/nakamuraroi/kumagai/data/processed/bipartite_construction.csv",
+  "time_dependent_potential": false,
+  "phi_year_min": 2012,
+  "phi_year_max": 2021,
+  "holdout_test_year": null,
+  "years": [
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020,
+    2021
+  ],
+  "seed": 42,
+  "epochs": 2,
+  "hidden_dim": 128,
+  "latent_dim": 2,
+  "link_score_mode": "distance",
+  "cope_density_calibrated": false,
+  "cope_density_log_weight": 1.0,
+  "cope_density_ema_momentum": 0.05,
+  "loss": {
+    "beta": 0.01,
+    "pos_weight": 5.0,
+    "latent_pred_weight": 1.0,
+    "future_link_weight": 10.0,
+    "potential_weight": 0.01,
+    "trajectory_weight": 0.05,
+    "num_neg_recon": 800,
+    "num_neg_future": 400,
+    "loss_aux_warmup_epochs": 0,
+    "attention_ground_weight": 0.5,
+    "potential_reg_mode": "l2",
+    "trajectory_delta_source": "z",
+    "trajectory_loss_type": "cosine",
+    "trajectory_grad_floor": 0.0,
+    "trajectory_grad_floor_weight": 0.0
+  },
+  "pnode_history_len": 1,
+  "pnode_ode_method": "dopri5",
+  "pnode_ode_n_steps": 4,
+  "pnode_potential_feature": "mlp",
+  "pnode_rff_frozen_basis": false,
+  "pnode_density_calibrated": false,
+  "pnode_density_log_weight": 1.0,
+  "pnode_density_ema_momentum": 0.05,
+  "pnode_hist_fuse_mode": "gru",
+  "optuna_best_json": null,
+  "optuna_best_json_map": null,
+  "optuna_meta": null,
+  "optuna_meta_by_method": {},
+  "optuna_best_params_by_method": {},
+  "cope_optuna_best_params": null,
+  "results": [
+    {
+      "label": "P-NODE",
+      "key": "pnode",
+      "best_val_auc": 0.8403122222222221,
+      "final_val_auc": 0.8379017777777777,
+      "final_val_ap": 0.752560651331928,
+      "final_val_ece": 0.2059137054170287,
+      "train_split_val_auc": 0.8379017777777777,
+      "train_split_val_ap": 0.752560651331928,
+      "train_split_val_ece": 0.2059137054170287,
+      "val_auc_per_epoch": [
+        0.8403122222222221,
+        0.8379024444444444
+      ],
+      "train_loss_per_epoch": [
+        73.36354488796658,
+        33.17594973246256
+      ],
+      "train_components_per_epoch": {
+        "recon": [
+          1.307930416531033,
+          0.7612394094467163
+        ],
+        "kl": [
+          0.033301097651322685,
+          0.06841040319866604
+        ],
+        "latent_pred": [
+          0.7906872994369931,
+          0.3285788363880581
+        ],
+        "future_link": [
+          71.18977779812283,
+          31.969044791327583
+        ],
+        "potential": [
+          0.00018068638706204688,
+          0.0017843049976767765
+        ],
+        "trajectory": [
+          0.04166643445690473,
+          0.04689089208841324
+        ],
+        "density_align": [
+          0.0,
+          0.0
+        ],
+        "attention_ground": [
+          0.0,
+          0.0
+        ],
+        "trend": [
+          0.0,
+          0.0
+        ],
+        "grad_phi_l2": [
+          0.27544083611832726,
+          1.1941613223817613
+        ]
+      },
+      "last_epoch_train_breakdown": {
+        "total": 33.17594973246256,
+        "recon": 0.7612394094467163,
+        "kl": 0.06841040319866604,
+        "latent_pred": 0.3285788363880581,
+        "future_link": 31.969044791327583,
+        "potential": 0.0017843049976767765,
+        "trajectory": 0.04689089208841324,
+        "density_align": 0.0,
+        "attention_ground": 0.0,
+        "trend": 0.0,
+        "grad_phi_l2": 1.1941613223817613
+      }
+    }
+  ]
+}

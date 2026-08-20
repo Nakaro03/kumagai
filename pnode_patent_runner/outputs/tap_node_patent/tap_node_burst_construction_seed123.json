@@ -1,0 +1,34 @@
+{
+  "created_at_utc": "2026-07-22T02:04:56.362911+00:00",
+  "method": "tap_node_burst",
+  "data_domain": "construction",
+  "csv_path": "data/processed/bipartite_construction.csv",
+  "year_range": [
+    2017,
+    2021
+  ],
+  "seed": 123,
+  "epochs": 10,
+  "holdout_test_year": 2021,
+  "burst_percentile": 80.0,
+  "tap_node_config": {
+    "hidden_dim": 128,
+    "latent_dim": 2,
+    "kappa_init": 1.0,
+    "b_init": 0.5,
+    "log_h_init": 0.0,
+    "c_init": 0.0,
+    "link_score_mode": "distance",
+    "scalar_lr": 0.05
+  },
+  "tap_node_final_val_auc": 0.7861140000000001,
+  "tap_node_final_val_ap": 0.7133776683545837,
+  "tap_node_final_val_ece": 0.14287632151761265,
+  "learned_scalars": {
+    "kappa": 1.3836885690689087,
+    "b": 0.6230999231338501,
+    "h": 0.362839013338089,
+    "alpha": 0.29882296919822693,
+    "c": -0.28163161873817444
+  }
+}

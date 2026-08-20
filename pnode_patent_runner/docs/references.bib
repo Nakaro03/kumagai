@@ -1,0 +1,234 @@
+% References for the P-NODE comparison-methods / baselines section.
+% Bibliographic details verified via web (DOI/arXiv). See docs/COMPARISON_METHODS.md.
+
+% ---- Shared components: encoder / decoder ----
+@inproceedings{velickovic2018gat,
+  title     = {Graph Attention Networks},
+  author    = {Veli{\v{c}}kovi{\'c}, Petar and Cucurull, Guillem and Casanova, Arantxa and Romero, Adriana and Li{\`o}, Pietro and Bengio, Yoshua},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2018},
+  note      = {arXiv:1710.10903}
+}
+
+@article{kipf2016vgae,
+  title   = {Variational Graph Auto-Encoders},
+  author  = {Kipf, Thomas N. and Welling, Max},
+  journal = {NeurIPS Bayesian Deep Learning Workshop},
+  year    = {2016},
+  note    = {arXiv:1611.07308}
+}
+
+@inproceedings{kipf2017gcn,
+  title     = {Semi-Supervised Classification with Graph Convolutional Networks},
+  author    = {Kipf, Thomas N. and Welling, Max},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2017},
+  note      = {arXiv:1609.02907}
+}
+
+@article{ba2016layernorm,
+  title   = {Layer Normalization},
+  author  = {Ba, Jimmy Lei and Kiros, Jamie Ryan and Hinton, Geoffrey E.},
+  journal = {arXiv preprint arXiv:1607.06450},
+  year    = {2016}
+}
+
+@inproceedings{he2016resnet,
+  title     = {Deep Residual Learning for Image Recognition},
+  author    = {He, Kaiming and Zhang, Xiangyu and Ren, Shaoqing and Sun, Jian},
+  booktitle = {IEEE Conference on Computer Vision and Pattern Recognition (CVPR)},
+  pages     = {770--778},
+  year      = {2016},
+  doi       = {10.1109/CVPR.2016.90}
+}
+
+% ---- Baselines ----
+@inproceedings{poursafaei2022edgebank,
+  title     = {Towards Better Evaluation for Dynamic Link Prediction},
+  author    = {Poursafaei, Farimah and Huang, Shenyang and Pelrine, Kellin and Rabbany, Reihaneh},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS), Datasets and Benchmarks Track},
+  year      = {2022},
+  note      = {arXiv:2207.10128}
+}
+
+@inproceedings{hajiramezanali2019vgrnn,
+  title     = {Variational Graph Recurrent Neural Networks},
+  author    = {Hajiramezanali, Ehsan and Hasanzadeh, Arman and Narayanan, Krishna and Duffield, Nick and Zhou, Mingyuan and Qian, Xiaoning},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2019},
+  note      = {arXiv:1908.09710}
+}
+
+@article{hochreiter1997lstm,
+  title   = {Long Short-Term Memory},
+  author  = {Hochreiter, Sepp and Schmidhuber, J{\"u}rgen},
+  journal = {Neural Computation},
+  volume  = {9},
+  number  = {8},
+  pages   = {1735--1780},
+  year    = {1997},
+  doi     = {10.1162/neco.1997.9.8.1735}
+}
+
+@inproceedings{seo2018gcrn,
+  title     = {Structured Sequence Modeling with Graph Convolutional Recurrent Networks},
+  author    = {Seo, Youngjoo and Defferrard, Micha{\"e}l and Vandergheynst, Pierre and Bresson, Xavier},
+  booktitle = {International Conference on Neural Information Processing (ICONIP)},
+  series    = {LNCS 11301},
+  year      = {2018},
+  note      = {arXiv:1612.07659}
+}
+
+% ---- Neural ODE family ----
+@inproceedings{chen2018neuralode,
+  title     = {Neural Ordinary Differential Equations},
+  author    = {Chen, Ricky T. Q. and Rubanova, Yulia and Bettencourt, Jesse and Duvenaud, David},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2018},
+  note      = {arXiv:1806.07366}
+}
+
+@inproceedings{rubanova2019latentode,
+  title     = {Latent ODEs for Irregularly-Sampled Time Series},
+  author    = {Rubanova, Yulia and Chen, Ricky T. Q. and Duvenaud, David},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2019},
+  note      = {arXiv:1907.03907}
+}
+
+@inproceedings{huang2020lgode,
+  title     = {Learning Continuous System Dynamics from Irregularly-Sampled Partial Observations},
+  author    = {Huang, Zijie and Sun, Yizhou and Wang, Wei},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2020},
+  note      = {arXiv:2011.03880}
+}
+
+% ---- Dynamic-graph baselines (in-repo extra comparisons) ----
+@inproceedings{pareja2020evolvegcn,
+  title     = {EvolveGCN: Evolving Graph Convolutional Networks for Dynamic Graphs},
+  author    = {Pareja, Aldo and Domeniconi, Giacomo and Chen, Jie and Ma, Tengfei and Suzumura, Toyotaro and Kanezashi, Hiroki and Kaler, Tim and Schardl, Tao B. and Leiserson, Charles E.},
+  booktitle = {Proceedings of the AAAI Conference on Artificial Intelligence},
+  volume    = {34},
+  number    = {04},
+  pages     = {5363--5370},
+  year      = {2020},
+  doi       = {10.1609/aaai.v34i04.5984},
+  note      = {arXiv:1902.10191}
+}
+
+@inproceedings{you2022roland,
+  title     = {ROLAND: Graph Learning Framework for Dynamic Graphs},
+  author    = {You, Jiaxuan and Du, Tianyu and Leskovec, Jure},
+  booktitle = {Proceedings of the 28th ACM SIGKDD Conference on Knowledge Discovery and Data Mining (KDD)},
+  pages     = {2358--2366},
+  year      = {2022},
+  doi       = {10.1145/3534678.3539300},
+  note      = {arXiv:2208.07239}
+}
+
+% NOTE: distinct from our CoPE-VGAE; cited only to disambiguate the name.
+@inproceedings{zhang2021cope,
+  title     = {CoPE: Modeling Continuous Propagation and Evolution on Interaction Graph},
+  author    = {Zhang, Yao and Xiong, Yun and Li, Dongsheng and Shan, Caihua and Ren, Kan and Zhu, Yangyong},
+  booktitle = {Proceedings of the 30th ACM International Conference on Information and Knowledge Management (CIKM)},
+  pages     = {2627--2636},
+  year      = {2021},
+  doi       = {10.1145/3459637.3482419}
+}
+
+% ---- Structured vector fields / potentials (proposed-method background) ----
+@inproceedings{greydanus2019hnn,
+  title     = {Hamiltonian Neural Networks},
+  author    = {Greydanus, Samuel and Dzamba, Misko and Yosinski, Jason},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2019},
+  note      = {arXiv:1906.01563}
+}
+
+@inproceedings{cranmer2020lnn,
+  title     = {Lagrangian Neural Networks},
+  author    = {Cranmer, Miles and Greydanus, Sam and Hoyer, Stephan and Battaglia, Peter and Spergel, David and Ho, Shirley},
+  booktitle = {ICLR 2020 Workshop on Integration of Deep Neural Models and Differential Equations},
+  year      = {2020},
+  note      = {arXiv:2003.04630}
+}
+
+@inproceedings{vaswani2017attention,
+  title     = {Attention Is All You Need},
+  author    = {Vaswani, Ashish and Shazeer, Noam and Parmar, Niki and Uszkoreit, Jakob and Jones, Llion and Gomez, Aidan N. and Kaiser, {\L}ukasz and Polosukhin, Illia},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2017},
+  note      = {arXiv:1706.03762}
+}
+
+@inproceedings{miyato2018spectralnorm,
+  title     = {Spectral Normalization for Generative Adversarial Networks},
+  author    = {Miyato, Takeru and Kataoka, Toshiki and Koyama, Masanori and Yoshida, Yuichi},
+  booktitle = {International Conference on Learning Representations (ICLR)},
+  year      = {2018},
+  note      = {arXiv:1802.05957}
+}
+
+@inproceedings{rahimi2007rff,
+  title     = {Random Features for Large-Scale Kernel Machines},
+  author    = {Rahimi, Ali and Recht, Benjamin},
+  booktitle = {Advances in Neural Information Processing Systems (NeurIPS)},
+  year      = {2007}
+}
+
+@article{comaniciu2002meanshift,
+  title   = {Mean Shift: A Robust Approach Toward Feature Space Analysis},
+  author  = {Comaniciu, Dorin and Meer, Peter},
+  journal = {IEEE Transactions on Pattern Analysis and Machine Intelligence},
+  volume  = {24},
+  number  = {5},
+  pages   = {603--619},
+  year    = {2002},
+  doi     = {10.1109/34.1000236}
+}
+
+% ---- Non-equilibrium potential / quasi-potential (physical background) ----
+@article{wang2008potentialflux,
+  title   = {Potential landscape and flux framework of nonequilibrium networks: Robustness, dissipation, and coherence of biochemical oscillations},
+  author  = {Wang, Jin and Xu, Li and Wang, Erkang},
+  journal = {Proceedings of the National Academy of Sciences (PNAS)},
+  volume  = {105},
+  number  = {34},
+  pages   = {12271--12276},
+  year    = {2008},
+  doi     = {10.1073/pnas.0800579105}
+}
+
+@article{ao2004potential,
+  title   = {Potential in stochastic differential equations: novel construction},
+  author  = {Ao, Ping},
+  journal = {Journal of Physics A: Mathematical and General},
+  volume  = {37},
+  number  = {3},
+  pages   = {L25--L30},
+  year    = {2004},
+  doi     = {10.1088/0305-4470/37/3/L01}
+}
+
+@article{zhou2012quasipotential,
+  title   = {Quasi-potential landscape in complex multi-stable systems},
+  author  = {Zhou, Joseph Xu and Aliyu, M. D. S. and Aurell, Erik and Huang, Sui},
+  journal = {Journal of the Royal Society Interface},
+  volume  = {9},
+  number  = {77},
+  pages   = {3539--3553},
+  year    = {2012},
+  doi     = {10.1098/rsif.2012.0434}
+}
+
+@article{wang2011waddington,
+  title   = {Quantifying the Waddington landscape and biological paths for development and differentiation},
+  author  = {Wang, Jin and Zhang, Kun and Xu, Li and Wang, Erkang},
+  journal = {Proceedings of the National Academy of Sciences (PNAS)},
+  volume  = {108},
+  number  = {20},
+  pages   = {8257--8262},
+  year    = {2011},
+  doi     = {10.1073/pnas.1017017108}
+}

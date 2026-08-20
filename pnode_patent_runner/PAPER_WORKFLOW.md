@@ -31,7 +31,7 @@ flowchart LR
 |------|----------------|
 | **問題** | 年次二部グラフ上の **future-link 予測**（左＝企業または著者、右＝特許・論文・トピック等）。 |
 | **提案** | **同一 `PotentialNet` の $\Phi$** が (1) 勾配流 ODE の速度場 $-\nabla\Phi$ と (2) デコーダの $w_{\mathrm{pot}}(\Phi_i+\Phi_j)$ の両方に現れる（`UnifiedVGAE`）。 |
-| **対照** | `BenchmarkTemporalVGAE` の **P-NODE** は同様の勾配流だが **デコーダに $\Phi$ を入れない**。Static / RNN / Neural ODE との違いは [README_COPE.md のベースライン表](README_COPE.md) 参照。 |
+| **対照** | `BenchmarkTemporalVGAE` の **P-NODE** は同様の勾配流だが **デコーダに $\Phi$ を入れない**。Static / RNN / Neural ODE との違いは [README_COPE.md のベースライン表](README_COPE.md) 参照。各手法の**定義・出典論文・引用**（実装通りの式と DOI/arXiv 付き）は [docs/COMPARISON_METHODS.md](docs/COMPARISON_METHODS.md)。 |
 | **主な評価指標** | 検証は **`evaluate_val_future_link_metrics`** に基づく **ROC-AUC**、**AP**、**ECE**（リンク logit の sigmoid 上の等幅ビン期待較正誤差; `FUTURE_LINK_ECE_N_BINS`）。対象は時系列の **最終2年** $y_{T-1}\to y_T$ の future-link（実装: `unified_training.py`）。 |
 | **データドメイン** | `--data-domain patent` / `arxiv` / `author_topic` のいずれを主結果にするか。 |
 

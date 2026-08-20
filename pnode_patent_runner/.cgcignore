@@ -1,0 +1,6 @@
+# CodeGraphContext ignore patterns for pnode_patent_runner
+.tsfm_venv/
+__pycache__/
+*.pyc
+outputs/
+results/

@@ -1,0 +1,277 @@
+{
+  "readme_pipeline": true,
+  "data_domain": "patent",
+  "data": "/home/nakamuraroi/kumagai/notebooks/work/dataset/topic_info3.csv",
+  "time_dependent_potential": false,
+  "phi_year_min": 2010,
+  "phi_year_max": 2020,
+  "holdout_test_year": null,
+  "years": [
+    2010,
+    2011,
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+  ],
+  "seed": 42,
+  "epochs": 10,
+  "link_score_mode": "distance",
+  "cope_density_calibrated": false,
+  "cope_density_log_weight": 1.0,
+  "cope_density_ema_momentum": 0.05,
+  "loss": {
+    "beta": 0.01,
+    "pos_weight": 5.0,
+    "latent_pred_weight": 1.0,
+    "future_link_weight": 10.0,
+    "potential_weight": 0.01,
+    "trajectory_weight": 0.05,
+    "num_neg_recon": 800,
+    "num_neg_future": 400
+  },
+  "optuna_best_json": "/home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808/best_params_cope.json",
+  "optuna_best_json_map": "/home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808/optuna_paths_by_method.json",
+  "optuna_meta": {
+    "study_name": "unified_vgae_cope",
+    "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+    "best_value": 0.6182275497626004,
+    "best_trial_number": 2,
+    "space": "minimal",
+    "cope_link_score": "distance"
+  },
+  "optuna_meta_by_method": {
+    "cope": {
+      "study_name": "unified_vgae_cope",
+      "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+      "best_value": 0.6182275497626004,
+      "best_trial_number": 2,
+      "space": "minimal",
+      "cope_link_score": "distance"
+    },
+    "neural_ode": {
+      "study_name": "optuna_baseline_neural_ode",
+      "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+      "best_value": 0.6242039125273924,
+      "best_trial_number": 2,
+      "space": "minimal",
+      "cope_link_score": "distance"
+    },
+    "pnode": {
+      "study_name": "optuna_baseline_pnode",
+      "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+      "best_value": 0.6270330190832725,
+      "best_trial_number": 4,
+      "space": "minimal",
+      "cope_link_score": "distance"
+    },
+    "rnn": {
+      "study_name": "optuna_baseline_rnn",
+      "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+      "best_value": 0.6769069005661067,
+      "best_trial_number": 4,
+      "space": "minimal",
+      "cope_link_score": "distance"
+    },
+    "static": {
+      "study_name": "optuna_baseline_static",
+      "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_234808.db",
+      "best_value": 0.6149775725894814,
+      "best_trial_number": 0,
+      "space": "minimal",
+      "cope_link_score": "distance"
+    }
+  },
+  "optuna_best_params_by_method": {
+    "cope": {
+      "lr": 0.0013218583462058368,
+      "beta": 0.014925083536945693,
+      "pos_weight": 4.610561080420313,
+      "latent_pred_weight": 0.8761328453635061,
+      "future_link_weight": 9.659765775490353,
+      "potential_weight": 0.014880208659275137,
+      "trajectory_weight": 0.02217598961611118,
+      "w_pot_init": 0.07488995178884374,
+      "hidden_dim": 192
+    },
+    "neural_ode": {
+      "lr": 0.0006173549753583337,
+      "beta": 0.014480813945575436,
+      "pos_weight": 3.033133906719611,
+      "latent_pred_weight": 1.4210565501187231,
+      "future_link_weight": 12.329931367277663,
+      "potential_weight": 0.010733763995673534,
+      "trajectory_weight": 0.070986698373877,
+      "w_pot_init": 0.11294526443261113,
+      "hidden_dim": 256
+    },
+    "pnode": {
+      "lr": 0.0012633874300885632,
+      "beta": 0.009722996022739416,
+      "pos_weight": 5.063288666503871,
+      "latent_pred_weight": 1.0750216264014671,
+      "future_link_weight": 9.796812560819244,
+      "potential_weight": 0.01987560266490604,
+      "trajectory_weight": 0.04285158167727261,
+      "w_pot_init": 0.03857711820104426,
+      "hidden_dim": 256
+    },
+    "rnn": {
+      "lr": 0.0009905055318066617,
+      "beta": 0.008840446599041143,
+      "pos_weight": 4.6939981138700775,
+      "latent_pred_weight": 0.8767606980042856,
+      "future_link_weight": 10.000140775819744,
+      "potential_weight": 0.008708105079670092,
+      "trajectory_weight": 0.027916443750587883,
+      "w_pot_init": 0.04978379229722865,
+      "hidden_dim": 128,
+      "rnn_history_len": 2
+    },
+    "static": {
+      "lr": 0.0013898029741451548,
+      "beta": 0.007972182849829812,
+      "pos_weight": 3.910207261408723,
+      "latent_pred_weight": 1.1397118950656444,
+      "future_link_weight": 14.733961385565008,
+      "potential_weight": 0.006025986990141593,
+      "trajectory_weight": 0.04225424190094472,
+      "w_pot_init": 0.03583014996959423,
+      "hidden_dim": 192
+    }
+  },
+  "cope_optuna_best_params": {
+    "lr": 0.0013218583462058368,
+    "beta": 0.014925083536945693,
+    "pos_weight": 4.610561080420313,
+    "latent_pred_weight": 0.8761328453635061,
+    "future_link_weight": 9.659765775490353,
+    "potential_weight": 0.014880208659275137,
+    "trajectory_weight": 0.02217598961611118,
+    "w_pot_init": 0.07488995178884374,
+    "hidden_dim": 192
+  },
+  "results": [
+    {
+      "label": "Static",
+      "key": "static",
+      "best_val_auc": 0.8163135157962016,
+      "final_val_auc": 0.8163135157962016,
+      "final_val_ap": 0.7823587704927486,
+      "train_split_val_auc": 0.8163135157962016,
+      "train_split_val_ap": 0.7823587704927486,
+      "val_auc_per_epoch": [
+        0.554439257669832,
+        0.6036540129656683,
+        0.6341920996165084,
+        0.6208512143900657,
+        0.6957661842585829,
+        0.7382413029583637,
+        0.7522170608108109,
+        0.7675110710372535,
+        0.8000878834915996,
+        0.8163135157962016
+      ],
+      "optuna_tuned": true,
+      "optuna_tuned_method_key": "static"
+    },
+    {
+      "label": "RNN+VGAE",
+      "key": "rnn",
+      "best_val_auc": 0.7126666362308254,
+      "final_val_auc": 0.43675241964937905,
+      "final_val_ap": 0.4746661722793442,
+      "train_split_val_auc": 0.43675241964937905,
+      "train_split_val_ap": 0.4746661722793442,
+      "val_auc_per_epoch": [
+        0.5703153533601169,
+        0.572911911066472,
+        0.6002913280679327,
+        0.633537253469686,
+        0.7043091444485025,
+        0.7126666362308254,
+        0.6852472721877282,
+        0.5247914193754566,
+        0.5210734911431703,
+        0.43675241964937905
+      ],
+      "optuna_tuned": true,
+      "optuna_tuned_method_key": "rnn"
+    },
+    {
+      "label": "NeuralODE",
+      "key": "neural_ode",
+      "best_val_auc": 0.8228291636230827,
+      "final_val_auc": 0.8228291636230827,
+      "final_val_ap": 0.7805396824533547,
+      "train_split_val_auc": 0.8228291636230827,
+      "train_split_val_ap": 0.7805396824533547,
+      "val_auc_per_epoch": [
+        0.5765656386961286,
+        0.5686775246530315,
+        0.6011544695032871,
+        0.6519357195032871,
+        0.70850073046019,
+        0.7440079437545652,
+        0.7727669603725346,
+        0.7864317019722425,
+        0.8059800721329438,
+        0.8228291636230827
+      ],
+      "optuna_tuned": true,
+      "optuna_tuned_method_key": "neural_ode"
+    },
+    {
+      "label": "P-NODE",
+      "key": "pnode",
+      "best_val_auc": 0.7713973475164354,
+      "final_val_auc": 0.7714059075967861,
+      "final_val_ap": 0.7272734176978579,
+      "train_split_val_auc": 0.7714059075967861,
+      "train_split_val_ap": 0.7272734176978579,
+      "val_auc_per_epoch": [
+        0.603685399926954,
+        0.5532693800219138,
+        0.5572583774653032,
+        0.6018449826515704,
+        0.589370092220599,
+        0.6445355300401754,
+        0.6648186404309715,
+        0.7101642394083273,
+        0.7645778168371073,
+        0.7713973475164354
+      ],
+      "optuna_tuned": true,
+      "optuna_tuned_method_key": "pnode"
+    },
+    {
+      "label": "CoPE-VGAE",
+      "key": "cope",
+      "best_val_auc": 0.8270378697954712,
+      "final_val_auc": 0.8270378697954712,
+      "final_val_ap": 0.7743698104694245,
+      "train_split_val_auc": 0.8270378697954712,
+      "train_split_val_ap": 0.7743698104694245,
+      "val_auc_per_epoch": [
+        0.572229957998539,
+        0.5447321265522279,
+        0.44043040084002916,
+        0.5558245640065742,
+        0.6308864819211103,
+        0.6987465189006574,
+        0.7316757213294376,
+        0.7702845370708546,
+        0.8120120754200146,
+        0.8270378697954712
+      ],
+      "optuna_tuned": true,
+      "optuna_tuned_method_key": "cope",
+      "optuna_tuned_cope": true
+    }
+  ]
+}

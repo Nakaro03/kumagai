@@ -1,0 +1,122 @@
+{
+  "comparison_type": "fair_energy_decoder_plus_cope",
+  "models": [
+    "Fair-Static-E",
+    "Fair-VGRNN-E",
+    "Fair-GODE-E",
+    "Fair-PNODE-E",
+    "CoPE-VGAE"
+  ],
+  "note": "Fair-*-E \u306f SharedEncoder + \u8ddd\u96e2\u30dd\u30c6\u30f3\u30b7\u30e3\u30eb\u30c7\u30b3\u30fc\u30c0\u3002CoPE-VGAE \u306f SharedVGAEEncoder + \u8ecc\u9053\u640d\u5931\u3042\u308a\u3002",
+  "settings": {
+    "data": "/home/nakamuraroi/kumagai/notebooks/work/dataset/topic_info3.csv",
+    "output": "/home/nakamuraroi/kumagai/pnode_patent_runner/outputs/fair_decoder_comparison",
+    "min_patents": 2,
+    "num_runs": 3,
+    "epochs": 20,
+    "latent_dim": 16,
+    "hidden_dim": 128,
+    "seed": 42,
+    "w_pot_init": 0.05,
+    "potential_weight": 0.01,
+    "trajectory_weight": 0.05,
+    "lr": 0.001,
+    "num_neg_recon": 800,
+    "num_neg_future": 400,
+    "proposed_name": "CoPE-VGAE",
+    "skip_fair": false,
+    "skip_cope": false,
+    "cope_grid_only": false,
+    "grid_potential_weights": "0.005,0.01,0.02",
+    "grid_trajectory_weights": "0.0,0.05,0.1"
+  },
+  "final_scores": {
+    "Fair-Static-E": {
+      "auc": [
+        0.475854,
+        0.598964,
+        0.45816199999999996
+      ],
+      "mrr": [
+        0.0991235881805215,
+        0.20945474707689343,
+        0.09291446664460497
+      ]
+    },
+    "Fair-VGRNN-E": {
+      "auc": [
+        0.45265,
+        0.45946,
+        0.457692
+      ],
+      "mrr": [
+        0.01836481842376949,
+        0.018567101811999887,
+        0.017450335705021233
+      ]
+    },
+    "Fair-GODE-E": {
+      "auc": [
+        0.51916,
+        0.55181,
+        0.5289539999999999
+      ],
+      "mrr": [
+        0.06078523140023585,
+        0.13785782397468638,
+        0.07295628880856136
+      ]
+    },
+    "Fair-PNODE-E": {
+      "auc": [
+        0.479476,
+        0.482676,
+        0.529714
+      ],
+      "mrr": [
+        0.05204822350847333,
+        0.03706695757182777,
+        0.05185080941034453
+      ]
+    },
+    "CoPE-VGAE": {
+      "auc": [
+        0.568694,
+        0.6158619999999999,
+        0.472834
+      ],
+      "mrr": [
+        0.15387859612767535,
+        0.11597837743128375,
+        0.1227929119765623
+      ]
+    }
+  },
+  "training_times": {
+    "Fair-Static-E": [
+      21.538845539093018,
+      22.293701887130737,
+      21.489051342010498
+    ],
+    "Fair-VGRNN-E": [
+      40.467586517333984,
+      41.87533140182495,
+      41.89818739891052
+    ],
+    "Fair-GODE-E": [
+      34.96490550041199,
+      34.30388689041138,
+      34.175299882888794
+    ],
+    "Fair-PNODE-E": [
+      38.5813148021698,
+      37.43992495536804,
+      38.52980041503906
+    ],
+    "CoPE-VGAE": [
+      107.67625522613525,
+      109.45550894737244,
+      106.06083607673645
+    ]
+  }
+}

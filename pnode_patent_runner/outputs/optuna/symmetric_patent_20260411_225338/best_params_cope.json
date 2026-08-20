@@ -1,0 +1,40 @@
+{
+  "study_name": "unified_vgae_cope",
+  "optuna_method": "cope",
+  "storage": "sqlite:////home/nakamuraroi/kumagai/pnode_patent_runner/outputs/optuna/symmetric_patent_20260411_225338.db",
+  "data_domain": "patent",
+  "data": "data/processed/topic_info3.csv",
+  "holdout_test_year": null,
+  "years": [
+    2010,
+    2011,
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+  ],
+  "n_trials": 1,
+  "epochs_per_trial": 2,
+  "space": "default",
+  "cope_link_score": "distance",
+  "seed": 42,
+  "best_value": 0.5786229113403945,
+  "best_trial_number": 0,
+  "best_params": {
+    "lr": 0.0002176869461341231,
+    "beta": 0.0126960160420356,
+    "pos_weight": 7.9552397448311565,
+    "latent_pred_weight": 1.625042499494083,
+    "future_link_weight": 11.440827360587836,
+    "potential_weight": 0.006226432338740725,
+    "trajectory_weight": 0.035014025541304256,
+    "w_pot_init": 0.06887183239561534,
+    "hidden_dim": 96
+  },
+  "user_attrs": {}
+}

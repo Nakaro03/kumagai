@@ -1,0 +1,88 @@
+{
+  "readme_pipeline": true,
+  "data_domain": "patent",
+  "data": "notebooks/work/dataset/topic_info3.csv",
+  "time_dependent_potential": true,
+  "phi_year_min": 2010,
+  "phi_year_max": 2020,
+  "holdout_test_year": null,
+  "years": [
+    2010,
+    2011,
+    2012,
+    2013,
+    2014,
+    2015,
+    2016,
+    2017,
+    2018,
+    2019,
+    2020
+  ],
+  "seed": 42,
+  "epochs": 10,
+  "link_score_mode": "distance",
+  "cope_density_calibrated": false,
+  "cope_density_log_weight": 1.0,
+  "cope_density_ema_momentum": 0.05,
+  "loss": {
+    "beta": 0.01,
+    "pos_weight": 5.0,
+    "latent_pred_weight": 1.0,
+    "future_link_weight": 10.0,
+    "potential_weight": 0.01,
+    "trajectory_weight": 0.05,
+    "num_neg_recon": 800,
+    "num_neg_future": 400
+  },
+  "optuna_best_json": null,
+  "optuna_best_json_map": null,
+  "optuna_meta": null,
+  "optuna_meta_by_method": {},
+  "optuna_best_params_by_method": {},
+  "cope_optuna_best_params": null,
+  "results": [
+    {
+      "label": "CoPE-VGAE",
+      "key": "cope",
+      "best_val_auc": 0.6916399999999999,
+      "final_val_auc": 0.6916399999999999,
+      "final_val_ap": 0.6539318564618288,
+      "train_split_val_auc": 0.6916399999999999,
+      "train_split_val_ap": 0.6539318564618288,
+      "val_auc_per_epoch": [
+        0.52996,
+        0.547652,
+        0.5383640000000001,
+        0.5754239999999999,
+        0.6067159999999999,
+        0.643122,
+        0.630292,
+        0.6594979999999999,
+        0.685932,
+        0.6916399999999999
+      ]
+    },
+    {
+      "label": "P-NODE",
+      "key": "pnode",
+      "best_val_auc": 0.723124,
+      "final_val_auc": 0.723116,
+      "final_val_ap": 0.6819164716304444,
+      "train_split_val_auc": 0.723116,
+      "train_split_val_ap": 0.6819164716304444,
+      "val_auc_per_epoch": [
+        0.532762,
+        0.5362359999999999,
+        0.5489379999999999,
+        0.5553140000000001,
+        0.5982299999999999,
+        0.6209439999999999,
+        0.641246,
+        0.6825479999999999,
+        0.7116119999999999,
+        0.723124
+      ]
+    }
+  ]
+}

@@ -76,9 +76,10 @@ def _restore_ode_p_proj_from_checkpoint(
     target_device: torch.device,
 ) -> bool:
     """
-    DualForcePotentialODEFunc は ``P_proj`` を第1 forward で lazy 生成する。
-    学習後の state_dict には ``P_proj.weight`` が入るが、新規 ``DualForceVGAE`` には
-    当該サブモジュールが存在しないため、手で ``nn.Linear`` を割り当てて読み込む。
+    **v1 チェックポイント専用の後方互換ヘルパー**（`P_j = W_proj(x_j)` だった旧アーキテクチャ）。
+    v2（`P_j` をエンコーダ潜在 `z_j` に直結し `P_proj` を撤廃）以降の DualForcePotentialODEFunc
+    には ``P_proj`` サブモジュール自体が存在しないため、v2 の state_dict には
+    ``P_proj.weight`` キーが無く、この関数は False を返して静かに no-op する。
     """
     if not isinstance(ode, DualForcePotentialODEFunc):
         return False

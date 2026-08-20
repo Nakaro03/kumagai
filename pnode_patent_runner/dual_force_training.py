@@ -80,9 +80,10 @@ def compute_dual_force_loss(
     return total_loss, breakdown
 
 def train_dual_force(
-    model, graphs, num_authors, hist_edges, num_epochs=20, lr=0.001
+    model, graphs, num_authors, hist_edges, num_epochs=20, lr=0.001, optimizer=None
 ):
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    if optimizer is None:
+        optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     years = sorted(graphs.keys())
     device = next(model.parameters()).device
     history = []

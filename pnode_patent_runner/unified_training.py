@@ -685,21 +685,27 @@ def future_link_auc_scores(
 
     ei = data_next.edge_index.to(device)
     mask = (ei[0] < num_corps) & (ei[1] >= num_corps)
-    pos_ei = ei[:, mask]
-    if pos_ei.size(1) == 0:
+    pos_ei_full = ei[:, mask]
+    if pos_ei_full.size(1) == 0:
         return np.array([0, 1]), np.array([0.5, 0.5])
 
-    n_pos = min(max_pos, pos_ei.size(1))
+    # 負例棄却は年内の全正例（サブサンプル前）に対して行う。サブサンプル後の pos_ei に対して
+    # 行うと、max_pos を超える件数の正例を持つ年（例: construction 2021 は真の正例 70,884 件に
+    # 対し max_pos=1500）で、サブサンプルに入らなかった正例が誤って負例として抽出されうる
+    # （2026-08-21 実測: サンプル負例の約0.67%が真の正例だった）。
+    full_pos_set = {tuple(pos_ei_full[:, i].tolist()) for i in range(pos_ei_full.size(1))}
+
+    n_pos = min(max_pos, pos_ei_full.size(1))
     perm = _future_link_pos_perm(
-        year_prev, year_next, max_pos, neg_ratio, pos_ei.size(1), device
+        year_prev, year_next, max_pos, neg_ratio, pos_ei_full.size(1), device
     )[:n_pos]
-    pos_ei = pos_ei[:, perm]
+    pos_ei = pos_ei_full[:, perm]
 
     active_c = torch.unique(pos_ei[0])
     active_p = torch.unique(pos_ei[1])
-    pos_set = {tuple(pos_ei[:, i].tolist()) for i in range(pos_ei.size(1))}
 
     neg_list = []
+    neg_set = set()
     neg_seed = (
         (int(year_prev) % 500_000) * 800_009 + (int(year_next) % 500_000) * 400_009 + n_pos * 11
     ) % (2**32 - 1)
@@ -711,8 +717,9 @@ def future_link_auc_scores(
         tries += 1
         c = int(rng.choice(ac))
         p = int(rng.choice(ap))
-        if (c, p) in pos_set:
+        if (c, p) in full_pos_set or (c, p) in neg_set:
             continue
+        neg_set.add((c, p))
         neg_list.append([c, p])
     if len(neg_list) < 4:
         return np.array([0, 1]), np.array([0.5, 0.5])

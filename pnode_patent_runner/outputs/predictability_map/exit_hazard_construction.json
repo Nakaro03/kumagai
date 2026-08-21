@@ -1,0 +1,1005 @@
+{
+  "domain": "construction",
+  "node_type": "firm",
+  "K": 3,
+  "results": {
+    "H2_Y2015": {
+      "including_domain_silent": {
+        "n": 908,
+        "n_exit": 166,
+        "prevalence": 0.1828193832599119,
+        "streak_recent_activity_spearman": 0.9282355375457114,
+        "calibration_streak": [
+          {
+            "streak": "3",
+            "n": 323,
+            "exit_rate": 0.3188854489164087
+          },
+          {
+            "streak": "4",
+            "n": 168,
+            "exit_rate": 0.18452380952380953
+          },
+          {
+            "streak": "5",
+            "n": 94,
+            "exit_rate": 0.1595744680851064
+          },
+          {
+            "streak": "6",
+            "n": 323,
+            "exit_rate": 0.05263157894736842
+          }
+        ],
+        "streak_length_inv": {
+          "auc": 0.7058259994154517,
+          "auc_ci95": [
+            0.6510306354200156,
+            0.7534712215804269
+          ],
+          "pr_lift": 1.589360112704584
+        },
+        "recent_activity_inv": {
+          "auc": 0.6946749261195726,
+          "auc_ci95": [
+            0.6426945061091345,
+            0.7475687621989182
+          ],
+          "pr_lift": 1.5775323122785847
+        },
+        "firm_trend_inv": {
+          "auc": 0.5348415224239276,
+          "auc_ci95": [
+            0.46111721442944276,
+            0.6136360033984121
+          ],
+          "pr_lift": 1.0313935552047788
+        },
+        "global_momentum_inv": {
+          "auc": 0.5889893807034066,
+          "auc_ci95": [
+            0.5234271579250543,
+            0.6521482956972044
+          ],
+          "pr_lift": 1.6168676808184157
+        }
+      },
+      "excluding_domain_silent": {
+        "n": 817,
+        "n_exit": 75,
+        "prevalence": 0.09179926560587515,
+        "streak_recent_activity_spearman": 0.930106276566124,
+        "calibration_streak": [
+          {
+            "streak": "3",
+            "n": 262,
+            "exit_rate": 0.16030534351145037
+          },
+          {
+            "streak": "4",
+            "n": 156,
+            "exit_rate": 0.12179487179487179
+          },
+          {
+            "streak": "5",
+            "n": 85,
+            "exit_rate": 0.07058823529411765
+          },
+          {
+            "streak": "6",
+            "n": 314,
+            "exit_rate": 0.025477707006369428
+          }
+        ],
+        "streak_length_inv": {
+          "auc": 0.6910601976639712,
+          "auc_ci95": [
+            0.6125026981220414,
+            0.7597567218841054
+          ],
+          "pr_lift": 1.6033752955165914
+        },
+        "recent_activity_inv": {
+          "auc": 0.6849685534591194,
+          "auc_ci95": [
+            0.6103301118511374,
+            0.7561011194363089
+          ],
+          "pr_lift": 1.606702258540461
+        },
+        "firm_trend_inv": {
+          "auc": 0.47689128481581305,
+          "auc_ci95": [
+            0.39195433873047536,
+            0.5573981216399692
+          ],
+          "pr_lift": 0.9266087545292806
+        },
+        "global_momentum_inv": {
+          "auc": 0.6295956873315364,
+          "auc_ci95": [
+            0.5664463037724362,
+            0.6969678909514299
+          ],
+          "pr_lift": 2.1316901929117207
+        }
+      }
+    },
+    "H2_Y2016": {
+      "including_domain_silent": {
+        "n": 983,
+        "n_exit": 187,
+        "prevalence": 0.19023397761953204,
+        "streak_recent_activity_spearman": 0.9264571517023099,
+        "calibration_streak": [
+          {
+            "streak": "3",
+            "n": 309,
+            "exit_rate": 0.31715210355987056
+          },
+          {
+            "streak": "4",
+            "n": 185,
+            "exit_rate": 0.1837837837837838
+          },
+          {
+            "streak": "5",
+            "n": 116,
+            "exit_rate": 0.15517241379310345
+          },
+          {
+            "streak": "6",
+            "n": 373,
+            "exit_rate": 0.09919571045576407
+          }
+        ],
+        "streak_length_inv": {
+          "auc": 0.6592991696450166,
+          "auc_ci95": [
+            0.594717237860222,
+            0.7186811638308014
+          ],
+          "pr_lift": 1.4513737667556799
+        },
+        "recent_activity_inv": {
+          "auc": 0.6636457689517105,
+          "auc_ci95": [
+            0.6067943884552802,
+            0.725836598418895
+          ],
+          "pr_lift": 1.5299481587587151
+        },
+        "firm_trend_inv": {
+          "auc": 0.5681045602343268,
+          "auc_ci95": [
+            0.507348929420497,
+            0.6304883144396433
+          ],
+          "pr_lift": 1.1192844215026392
+        },
+        "global_momentum_inv": {
+          "auc": 0.5740702173971461,
+          "auc_ci95": [
+            0.5265055224203075,
+            0.6255916520483444
+          ],
+          "pr_lift": 1.3579074304934566
+        }
+      },
+      "excluding_domain_silent": {
+        "n": 886,
+        "n_exit": 90,
+        "prevalence": 0.10158013544018059,
+        "streak_recent_activity_spearman": 0.9248849389973913,
+        "calibration_streak": [
+          {
+            "streak": "3",
+            "n": 255,
+            "exit_rate": 0.17254901960784313
+          },
+          {
+            "streak": "4",
+            "n": 166,
+            "exit_rate": 0.09036144578313253
+          },
+          {
+            "streak": "5",
+            "n": 103,
+            "exit_rate": 0.04854368932038835
+          },
+          {
+            "streak": "6",
+            "n": 362,
+            "exit_rate": 0.0718232044198895
+          }
+        ],
+        "streak_length_inv": {
+          "auc": 0.6186139028475712,
+          "auc_ci95": [
+            0.533287244468353,
+            0.7112198102777146
+          ],
+          "pr_lift": 1.4160757709185126
+        },
+        "recent_activity_inv": {
+          "auc": 0.6285315466219988,
+          "auc_ci95": [
+            0.5451390487226981,
+            0.7181586321468137
+          ],
+          "pr_lift": 1.4583813964399868
+        },
+        "firm_trend_inv": {
+          "auc": 0.6033919597989951,
+          "auc_ci95": [
+            0.5224393382608223,
+            0.6662196172699849
+          ],
+          "pr_lift": 1.4034291866332742
+        },
+        "global_momentum_inv": {
+          "auc": 0.592252931323283,
+          "auc_ci95": [
+            0.5431433073927284,
+            0.6455161161739477
+          ],
+          "pr_lift": 1.5646999142225715
+        }
+      }
+    },
+    "H2_Y2017": {
+      "including_domain_silent": {
+        "n": 1090,
+        "n_exit": 200,
+        "prevalence": 0.1834862385321101,
+        "streak_recent_activity_spearman": 0.9236155021928849,
+        "calibration_streak": [
+          {
+            "streak": "3",
+            "n": 380,
+            "exit_rate": 0.29736842105263156
+          },
+          {
+            "streak": "4",
+            "n": 173,
+            "exit_rate": 0.23699421965317918
+          },
+          {
+            "streak": "5",
+            "n": 132,
+            "exit_rate": 0.10606060606060606
+          },
+          {
+            "streak": "6",
+            "n": 405,
+            "exit_rate": 0.07901234567901234
+          }
+        ],
+        "streak_length_inv": {
+          "auc": 0.6760533707865168,
+          "auc_ci95": [
+            0.6319111613053211,
+            0.7178671711664031
+          ],
+          "pr_lift": 1.4803695854223704
+        },
+        "recent_activity_inv": {
+          "auc": 0.684811797752809,
+          "auc_ci95": [
+            0.6384935764438133,
+            0.7317037272383534
+          ],
+          "pr_lift": 1.5409863197557014
+        },
+        "firm_trend_inv": {
+          "auc": 0.5753539325842696,
+          "auc_ci95": [
+            0.5129504679681627,
+            0.6443139719547553
+          ],
+          "pr_lift": 1.2283899129405276
+        },
+        "global_momentum_inv": {
+          "auc": 0.5266573033707865,
+          "auc_ci95": [
+            0.48157794354765554,
+            0.5771071496715883
+          ],
+          "pr_lift": 1.0916897656395244
+        }
+      },
+      "excluding_domain_silent": {
+        "n": 984,
+        "n_exit": 94,
+        "prevalence": 0.09552845528455285,
+        "streak_recent_activity_spearman": 0.9203170480524977,
+        "calibration_streak": [
+          {
+            "streak": "3",
+            "n": 320,
+            "exit_rate": 0.165625
+          },
+          {
+            "streak": "4",
+            "n": 149,
+            "exit_rate": 0.11409395973154363
+          },
+          {
+            "streak": "5",
+            "n": 126,
+            "exit_rate": 0.06349206349206349
+          },
+          {
+            "streak": "6",
+            "n": 389,
+            "exit_rate": 0.04113110539845758
+          }
+        ],
+        "streak_length_inv": {
+          "auc": 0.6694178819029405,
+          "auc_ci95": [
+            0.6130429980934111,
+            0.7202892027504587
+          ],
+          "pr_lift": 1.5471198598660019
+        },
+        "recent_activity_inv": {
+          "auc": 0.665294047334449,
+          "auc_ci95": [
+            0.6010040494396403,
+            0.7168284250201186
+          ],
+          "pr_lift": 1.540321107866301
+        },
+        "firm_trend_inv": {
+          "auc": 0.5684735835524742,
+          "auc_ci95": [
+            0.49248452208123616,
+            0.6543607930850674
+          ],
+          "pr_lift": 1.6293160861865417
+        },
+        "global_momentum_inv": {
+          "auc": 0.5221611283767631,
+          "auc_ci95": [
+            0.4558477905289136,
+            0.594115726037597
+          ],
+          "pr_lift": 1.0995122019067292
+        }
+      }
+    },
+    "H3_Y2015": {
+      "including_domain_silent": {
+        "n": 908,
+        "n_exit": 139,
+        "prevalence": 0.15308370044052863,
+        "streak_recent_activity_spearman": 0.9282355375457114,
+        "calibration_streak": [
+          {
+            "streak": "3",
+            "n": 323,
+            "exit_rate": 0.2786377708978328
+          },
+          {
+            "streak": "4",
+            "n": 168,
+            "exit_rate": 0.14285714285714285
+          },
+          {
+            "streak": "5",
+            "n": 94,
+            "exit_rate": 0.14893617021276595
+          },
+          {
+            "streak": "6",
+            "n": 323,
+            "exit_rate": 0.034055727554179564
+          }
+        ],
+        "streak_length_inv": {
+          "auc": 0.7157291072213751,
+          "auc_ci95": [
+            0.6627361405993094,
+            0.761961982410452
+          ],
+          "pr_lift": 1.6634934730138695
+        },
+        "recent_activity_inv": {
+          "auc": 0.6970839453274831,
+          "auc_ci95": [
+            0.6420569830072399,
+            0.7520130158697286
+          ],
+          "pr_lift": 1.6174968444624596
+        },
+        "firm_trend_inv": {
+          "auc": 0.5454341338372736,
+          "auc_ci95": [
+            0.46808855543004785,
+            0.6275631585056969
+          ],
+          "pr_lift": 1.0657066192850513
+        },
+        "global_momentum_inv": {
+          "auc": 0.5726534507114724,
+          "auc_ci95": [
+            0.49986494744740956,
+            0.6483580182151706
+          ],
+          "pr_lift": 1.634709079101582
+        }
+      },
+      "excluding_domain_silent": {
+        "n": 823,
+        "n_exit": 54,
+        "prevalence": 0.06561360874848117,
+        "streak_recent_activity_spearman": 0.9298705049896185,
+        "calibration_streak": [
+          {
+            "streak": "3",
+            "n": 265,
+            "exit_rate": 0.12075471698113208
+          },
+          {
+            "streak": "4",
+            "n": 156,
+            "exit_rate": 0.07692307692307693
+          },
+          {
+            "streak": "5",
+            "n": 86,
+            "exit_rate": 0.06976744186046512
+          },
+          {
+            "streak": "6",
+            "n": 316,
+            "exit_rate": 0.012658227848101266
+          }
+        ],
+        "streak_length_inv": {
+          "auc": 0.7027886143620865,
+          "auc_ci95": [
+            0.6278232102745502,
+            0.772843653202041
+          ],
+          "pr_lift": 1.685647975416144
+        },
+        "recent_activity_inv": {
+          "auc": 0.6784424216153735,
+          "auc_ci95": [
+            0.5945562604041256,
+            0.760831614460624
+          ],
+          "pr_lift": 1.5930278102702173
+        },
+        "firm_trend_inv": {
+          "auc": 0.49528006550113174,
+          "auc_ci95": [
+            0.38812389092776745,
+            0.6101497385488595
+          ],
+          "pr_lift": 1.0083085848542648
+        },
+        "global_momentum_inv": {
+          "auc": 0.6043803881905313,
+          "auc_ci95": [
+            0.528689244467441,
+            0.686633364722853
+          ],
+          "pr_lift": 2.2586064776749355
+        }
+      }
+    },
+    "H3_Y2016": {
+      "including_domain_silent": {
+        "n": 983,
+        "n_exit": 156,
+        "prevalence": 0.15869786368260427,
+        "streak_recent_activity_spearman": 0.9264571517023099,
+        "calibration_streak": [
+          {
+            "streak": "3",
+            "n": 309,
+            "exit_rate": 0.2815533980582524
+          },
+          {
+            "streak": "4",
+            "n": 185,
+            "exit_rate": 0.15135135135135136
+          },
+          {
+            "streak": "5",
+            "n": 116,
+            "exit_rate": 0.13793103448275862
+          },
+          {
+            "streak": "6",
+            "n": 373,
+            "exit_rate": 0.06702412868632708
+          }
+        ],
+        "streak_length_inv": {
+          "auc": 0.6801847890118748,
+          "auc_ci95": [
+            0.6256171097314074,
+            0.7337658929769169
+          ],
+          "pr_lift": 1.5517664990647102
+        },
+        "recent_activity_inv": {
+          "auc": 0.6816536446222057,
+          "auc_ci95": [
+            0.6289512380953184,
+            0.737725640411703
+          ],
+          "pr_lift": 1.6467644761851306
+        },
+        "firm_trend_inv": {
+          "auc": 0.5628236133072891,
+          "auc_ci95": [
+            0.49761087490539113,
+            0.6305462180645105
+          ],
+          "pr_lift": 1.1334416855445846
+        },
+        "global_momentum_inv": {
+          "auc": 0.5693540135801322,
+          "auc_ci95": [
+            0.515793572241362,
+            0.616778740650429
+          ],
+          "pr_lift": 1.3144074660598597
+        }
+      },
+      "excluding_domain_silent": {
+        "n": 893,
+        "n_exit": 66,
+        "prevalence": 0.07390817469204927,
+        "streak_recent_activity_spearman": 0.9245641120912157,
+        "calibration_streak": [
+          {
+            "streak": "3",
+            "n": 257,
+            "exit_rate": 0.13618677042801555
+          },
+          {
+            "streak": "4",
+            "n": 168,
+            "exit_rate": 0.06547619047619048
+          },
+          {
+            "streak": "5",
+            "n": 105,
+            "exit_rate": 0.047619047619047616
+          },
+          {
+            "streak": "6",
+            "n": 363,
+            "exit_rate": 0.04132231404958678
+          }
+        ],
+        "streak_length_inv": {
+          "auc": 0.6495089956395881,
+          "auc_ci95": [
+            0.5690495702915515,
+            0.7471518863242987
+          ],
+          "pr_lift": 1.547145029210629
+        },
+        "recent_activity_inv": {
+          "auc": 0.6488311164852882,
+          "auc_ci95": [
+            0.5665312454240614,
+            0.7403597976802534
+          ],
+          "pr_lift": 1.5648189571672482
+        },
+        "firm_trend_inv": {
+          "auc": 0.6032483236231725,
+          "auc_ci95": [
+            0.516612745637992,
+            0.6966440056837266
+          ],
+          "pr_lift": 1.5875708295843058
+        },
+        "global_momentum_inv": {
+          "auc": 0.5877303873071709,
+          "auc_ci95": [
+            0.5316736083907531,
+            0.658873268412312
+          ],
+          "pr_lift": 1.501238392040107
+        }
+      }
+    },
+    "H3_Y2017": {
+      "including_domain_silent": {
+        "n": 1090,
+        "n_exit": 161,
+        "prevalence": 0.14770642201834863,
+        "streak_recent_activity_spearman": 0.9236155021928849,
+        "calibration_streak": [
+          {
+            "streak": "3",
+            "n": 380,
+            "exit_rate": 0.24736842105263157
+          },
+          {
+            "streak": "4",
+            "n": 173,
+            "exit_rate": 0.1791907514450867
+          },
+          {
+            "streak": "5",
+            "n": 132,
+            "exit_rate": 0.06818181818181818
+          },
+          {
+            "streak": "6",
+            "n": 405,
+            "exit_rate": 0.06666666666666667
+          }
+        ],
+        "streak_length_inv": {
+          "auc": 0.6730973664328839,
+          "auc_ci95": [
+            0.6235564300670203,
+            0.717797696262793
+          ],
+          "pr_lift": 1.5141888501614174
+        },
+        "recent_activity_inv": {
+          "auc": 0.687251368933402,
+          "auc_ci95": [
+            0.6357241140457388,
+            0.7366009365419763
+          ],
+          "pr_lift": 1.6043597817533766
+        },
+        "firm_trend_inv": {
+          "auc": 0.6107348447873556,
+          "auc_ci95": [
+            0.5439652345246877,
+            0.6789939181879966
+          ],
+          "pr_lift": 1.3070578201160332
+        },
+        "global_momentum_inv": {
+          "auc": 0.5385273686392233,
+          "auc_ci95": [
+            0.4857681609741158,
+            0.593973621459905
+          ],
+          "pr_lift": 1.1619525564726714
+        }
+      },
+      "excluding_domain_silent": {
+        "n": 998,
+        "n_exit": 69,
+        "prevalence": 0.06913827655310621,
+        "streak_recent_activity_spearman": 0.9207661270078197,
+        "calibration_streak": [
+          {
+            "streak": "3",
+            "n": 327,
+            "exit_rate": 0.12538226299694188
+          },
+          {
+            "streak": "4",
+            "n": 154,
+            "exit_rate": 0.07792207792207792
+          },
+          {
+            "streak": "5",
+            "n": 126,
+            "exit_rate": 0.023809523809523808
+          },
+          {
+            "streak": "6",
+            "n": 391,
+            "exit_rate": 0.03324808184143223
+          }
+        ],
+        "streak_length_inv": {
+          "auc": 0.668718116722048,
+          "auc_ci95": [
+            0.5972492885909421,
+            0.7232366268693088
+          ],
+          "pr_lift": 1.6011782675576882
+        },
+        "recent_activity_inv": {
+          "auc": 0.6715261852389198,
+          "auc_ci95": [
+            0.6010004573140375,
+            0.727305775246465
+          ],
+          "pr_lift": 1.5881909115677562
+        },
+        "firm_trend_inv": {
+          "auc": 0.6234926132197626,
+          "auc_ci95": [
+            0.5377613252576754,
+            0.7114103280134534
+          ],
+          "pr_lift": 1.8354590619784676
+        },
+        "global_momentum_inv": {
+          "auc": 0.5477917661190933,
+          "auc_ci95": [
+            0.47341593892856737,
+            0.6271532741549523
+          ],
+          "pr_lift": 1.2203982177467698
+        }
+      }
+    }
+  },
+  "stop_rule_clears": [
+    [
+      "H2_Y2015",
+      "including_domain_silent",
+      "persistence_family",
+      0.7058259994154517,
+      1.589360112704584
+    ],
+    [
+      "H2_Y2015",
+      "including_domain_silent",
+      "persistence_family",
+      0.6946749261195726,
+      1.5775323122785847
+    ],
+    [
+      "H2_Y2015",
+      "including_domain_silent",
+      "global_momentum_inv",
+      0.5889893807034066,
+      1.6168676808184157
+    ],
+    [
+      "H2_Y2015",
+      "excluding_domain_silent",
+      "persistence_family",
+      0.6910601976639712,
+      1.6033752955165914
+    ],
+    [
+      "H2_Y2015",
+      "excluding_domain_silent",
+      "persistence_family",
+      0.6849685534591194,
+      1.606702258540461
+    ],
+    [
+      "H2_Y2015",
+      "excluding_domain_silent",
+      "global_momentum_inv",
+      0.6295956873315364,
+      2.1316901929117207
+    ],
+    [
+      "H2_Y2016",
+      "including_domain_silent",
+      "persistence_family",
+      0.6592991696450166,
+      1.4513737667556799
+    ],
+    [
+      "H2_Y2016",
+      "including_domain_silent",
+      "persistence_family",
+      0.6636457689517105,
+      1.5299481587587151
+    ],
+    [
+      "H2_Y2016",
+      "including_domain_silent",
+      "global_momentum_inv",
+      0.5740702173971461,
+      1.3579074304934566
+    ],
+    [
+      "H2_Y2016",
+      "excluding_domain_silent",
+      "persistence_family",
+      0.6186139028475712,
+      1.4160757709185126
+    ],
+    [
+      "H2_Y2016",
+      "excluding_domain_silent",
+      "persistence_family",
+      0.6285315466219988,
+      1.4583813964399868
+    ],
+    [
+      "H2_Y2016",
+      "excluding_domain_silent",
+      "firm_trend_inv",
+      0.6033919597989951,
+      1.4034291866332742
+    ],
+    [
+      "H2_Y2016",
+      "excluding_domain_silent",
+      "global_momentum_inv",
+      0.592252931323283,
+      1.5646999142225715
+    ],
+    [
+      "H2_Y2017",
+      "including_domain_silent",
+      "persistence_family",
+      0.6760533707865168,
+      1.4803695854223704
+    ],
+    [
+      "H2_Y2017",
+      "including_domain_silent",
+      "persistence_family",
+      0.684811797752809,
+      1.5409863197557014
+    ],
+    [
+      "H2_Y2017",
+      "excluding_domain_silent",
+      "persistence_family",
+      0.6694178819029405,
+      1.5471198598660019
+    ],
+    [
+      "H2_Y2017",
+      "excluding_domain_silent",
+      "persistence_family",
+      0.665294047334449,
+      1.540321107866301
+    ],
+    [
+      "H2_Y2017",
+      "excluding_domain_silent",
+      "firm_trend_inv",
+      0.5684735835524742,
+      1.6293160861865417
+    ],
+    [
+      "H3_Y2015",
+      "including_domain_silent",
+      "persistence_family",
+      0.7157291072213751,
+      1.6634934730138695
+    ],
+    [
+      "H3_Y2015",
+      "including_domain_silent",
+      "persistence_family",
+      0.6970839453274831,
+      1.6174968444624596
+    ],
+    [
+      "H3_Y2015",
+      "including_domain_silent",
+      "global_momentum_inv",
+      0.5726534507114724,
+      1.634709079101582
+    ],
+    [
+      "H3_Y2015",
+      "excluding_domain_silent",
+      "persistence_family",
+      0.7027886143620865,
+      1.685647975416144
+    ],
+    [
+      "H3_Y2015",
+      "excluding_domain_silent",
+      "persistence_family",
+      0.6784424216153735,
+      1.5930278102702173
+    ],
+    [
+      "H3_Y2015",
+      "excluding_domain_silent",
+      "global_momentum_inv",
+      0.6043803881905313,
+      2.2586064776749355
+    ],
+    [
+      "H3_Y2016",
+      "including_domain_silent",
+      "persistence_family",
+      0.6801847890118748,
+      1.5517664990647102
+    ],
+    [
+      "H3_Y2016",
+      "including_domain_silent",
+      "persistence_family",
+      0.6816536446222057,
+      1.6467644761851306
+    ],
+    [
+      "H3_Y2016",
+      "including_domain_silent",
+      "global_momentum_inv",
+      0.5693540135801322,
+      1.3144074660598597
+    ],
+    [
+      "H3_Y2016",
+      "excluding_domain_silent",
+      "persistence_family",
+      0.6495089956395881,
+      1.547145029210629
+    ],
+    [
+      "H3_Y2016",
+      "excluding_domain_silent",
+      "persistence_family",
+      0.6488311164852882,
+      1.5648189571672482
+    ],
+    [
+      "H3_Y2016",
+      "excluding_domain_silent",
+      "firm_trend_inv",
+      0.6032483236231725,
+      1.5875708295843058
+    ],
+    [
+      "H3_Y2016",
+      "excluding_domain_silent",
+      "global_momentum_inv",
+      0.5877303873071709,
+      1.501238392040107
+    ],
+    [
+      "H3_Y2017",
+      "including_domain_silent",
+      "persistence_family",
+      0.6730973664328839,
+      1.5141888501614174
+    ],
+    [
+      "H3_Y2017",
+      "including_domain_silent",
+      "persistence_family",
+      0.687251368933402,
+      1.6043597817533766
+    ],
+    [
+      "H3_Y2017",
+      "including_domain_silent",
+      "firm_trend_inv",
+      0.6107348447873556,
+      1.3070578201160332
+    ],
+    [
+      "H3_Y2017",
+      "excluding_domain_silent",
+      "persistence_family",
+      0.668718116722048,
+      1.6011782675576882
+    ],
+    [
+      "H3_Y2017",
+      "excluding_domain_silent",
+      "persistence_family",
+      0.6715261852389198,
+      1.5881909115677562
+    ],
+    [
+      "H3_Y2017",
+      "excluding_domain_silent",
+      "firm_trend_inv",
+      0.6234926132197626,
+      1.8354590619784676
+    ]
+  ],
+  "independent_signal_families_cleared": [
+    "firm_trend_inv",
+    "global_momentum_inv",
+    "persistence_family"
+  ]
+}

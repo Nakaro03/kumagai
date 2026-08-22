@@ -13,3 +13,8 @@
 # README_COPE 等の Python パイプライン（生成物は pnode_patent_runner/.gitignore）
 !pnode_patent_runner/
 !pnode_patent_runner/**
+
+# AIエージェント向け知識ベース（AGENTS.md標準）
+!AGENTS.md
+!.docs/
+!.docs/**

@@ -10,7 +10,7 @@
 
 **主要機能**: プロジェクトに応じて設定
 
-**設計書**: 本プロジェクトは**研究リポジトリのため一般的なテンプレート方針から逸脱**し、`pnode_patent_runner/docs/*.md` に生きた設計文書（ゲート・実験履歴の逐次更新）を置く。理由と運用ルールは [設計記録の方針](.docs/02-workflow/documentation-policy.md) を参照。
+**設計書**: **ローカルに実装計画・設計のmdファイルを新規作成することは禁止**。最終設計は研究方向ごとに1つのGitHub Issueへ一元化し、その中の固定コメント1件をIDで指定して更新し続ける（新しいコメント・新しいファイルを都度追加しない）。運用ルールは [設計記録の方針](.docs/02-workflow/documentation-policy.md) を参照。`pnode_patent_runner/docs/*.md` の既存文書（2026-08-22以前に作成）はそのまま残すが、今後の更新はGitHub Issue側で行う。
 
 ## 作業方針
 
@@ -54,5 +54,5 @@ Codex MCP が動かないか 1 分以上応答がない場合は Codex コマン
 
 - 繰り返し指示された内容は`.docs/`ディレクトリの該当ファイルに反映を検討
 - 冗長性を排除し、簡潔で密度の濃い文書を維持
-- 実験の生きた履歴は `pnode_patent_runner/docs/*.md`（[設計記録の方針](.docs/02-workflow/documentation-policy.md)参照）、AGENTS.md はエントリーポイントとして最小限に保つ
+- 実験の最終設計・生きた履歴は研究方向ごとのGitHub Issueの固定コメントに一元化する（[設計記録の方針](.docs/02-workflow/documentation-policy.md)参照）、AGENTS.md はエントリーポイントとして最小限に保つ
 - 知識ベースの構造は`.docs/README.md`を参照

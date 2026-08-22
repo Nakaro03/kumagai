@@ -47,7 +47,7 @@ def test_no_true_positive_leaks_into_negatives() -> None:
 
 - **共有インフラの変更は先にテストを書く**: 複数の実験スクリプトが依存するコードほどTDDの価値が高い
 - **単発スクリプトは訓練不要ベースライン+停止規則を先に書く**: ニューラルモデルを書く前に、必ず何を上回れば「意味がある」かを事前登録する（[研究の規律](../03-domain-specific/research-discipline.md)）
-- **設計の記録**: 設計判断はdocstringや`pnode_patent_runner/docs/*.md`の生きた設計文書に記録する（[設計記録の方針](./documentation-policy.md)参照）
+- **設計の記録**: 設計判断はdocstringや、対応するGitHub Issueの固定コメントに記録する（ローカルmdでの新規作成は禁止。[設計記録の方針](./documentation-policy.md)参照）
 
 ## 関連ドキュメント
 

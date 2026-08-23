@@ -449,6 +449,12 @@ class BenchmarkTemporalVGAE(nn.Module):
         z_history_list: List[torch.Tensor],
         year_calendar_start: Optional[int] = None,
     ) -> torch.Tensor:
+        # Dual-Force側の勾配漏れ修正（dual_force_vgae.py, 2026-08-22）と対称の修正。
+        # ここで detach しないと、時間発展モジュール（static は恒等写像、つまりパラメータ
+        # ゼロ）を経由した future_link_loss/latent_pred_loss の勾配がエンコーダまで直接
+        # 伝播し、手法間の比較がエンコーダの表現力の差にすり替わる
+        # （DUAL_FORCE_REDESIGN.md §6.7: rank_renorm が static と無差別だった一因）。
+        z_history_list = [z.detach() for z in z_history_list]
         if self.variant == "gravity":
             z_all     = z_history_list[-1]
             z_authors = z_all[: self.num_corps]

@@ -312,6 +312,11 @@ def main() -> None:
         help="patent: 企業あたり最小特許数。arxiv/author_topic: 著者あたり最小論文（行）数（多く 5）",
     )
     p.add_argument(
+        "--coarsen-to-maingroup",
+        action="store_true",
+        help="bipartiteドメイン限定: CPCノードをsubgroup粒度(生の値、既定)ではなくmaingroup粒度(\"/\"以前)に粗視化する",
+    )
+    p.add_argument(
         "--topic-column",
         type=str,
         default="topic",
@@ -647,6 +652,7 @@ def main() -> None:
                 year_range=yr,
                 years_csv=args.years,
                 all_years=args.all_years,
+                coarsen_to_maingroup=args.coarsen_to_maingroup,
             )
         else:
             ymin: Optional[int] = None if args.arxiv_no_year_filter else args.arxiv_year_min

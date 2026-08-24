@@ -425,6 +425,7 @@ def load_bipartite_domain_graph_bundle(
     year_range: Optional[Tuple[int, int]] = None,
     years_csv: str = "",
     all_years: bool = False,
+    coarsen_to_maingroup: bool = False,
 ) -> CopeGraphBundle:
     """
     Load a PatentsView-derived bipartite event CSV (columns: ts, u, i).
@@ -441,6 +442,7 @@ def load_bipartite_domain_graph_bundle(
         year_min=year_min,
         year_max=year_max,
         min_events=min_events,
+        coarsen_to_maingroup=coarsen_to_maingroup,
     )
     if len(df) == 0:
         raise ValueError("前処理後データが空です。year_min/year_max や min_events を確認してください。")
@@ -465,7 +467,7 @@ def load_bipartite_domain_graph_bundle(
 
     init_vectors = calculate_initial_actor_vectors(df, num_actors, in_dim, all_actors)
 
-    # IPC (right partition) ごとの年次成長率: g_j(year) = (count(year) - count(year-1)) / (count(year-1) + 1)
+    # IPC (右パーティション) ごとの年次成長率: g_j(year) = (count(year) - count(year-1)) / (count(year-1) + 1)
     topic_growth_by_year: Dict[int, torch.Tensor] = {}
     if len(all_ipc) > 0 and "i" in df.columns:
         ipc_to_idx = {t: i for i, t in enumerate(all_ipc)}

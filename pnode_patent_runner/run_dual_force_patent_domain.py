@@ -62,6 +62,10 @@ def main() -> int:
     p.add_argument("--holdout-test-year", type=int, default=None)
     p.add_argument("--output-json", type=Path, default=None)
     p.add_argument("--save-checkpoint", type=Path, default=None)
+    p.add_argument(
+        "--coarsen-to-maingroup", action="store_true",
+        help="CPCノードをsubgroup粒度(生の値、既定)ではなくmaingroup粒度(\"/\"以前)に粗視化する",
+    )
     args = p.parse_args()
 
     torch.manual_seed(int(args.seed))
@@ -71,6 +75,7 @@ def main() -> int:
         csv_path,
         year_range=(int(args.year_start), int(args.year_end)),
         min_events=int(args.min_events),
+        coarsen_to_maingroup=bool(args.coarsen_to_maingroup),
     )
     graphs_f = bundle.graphs
     if len(graphs_f) < 2:

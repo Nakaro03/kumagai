@@ -75,6 +75,7 @@ def load_dual_force_bundle_patent_domain(
     year_min: int = 2000,
     year_max: int = 2021,
     burst_percentile: float = BURST_PERCENTILE,
+    coarsen_to_maingroup: bool = False,
 ) -> CopeGraphBundle:
     bundle = load_bipartite_domain_graph_bundle(
         csv_path,
@@ -82,5 +83,6 @@ def load_dual_force_bundle_patent_domain(
         year_min=year_min,
         year_max=year_max,
         year_range=year_range,
+        coarsen_to_maingroup=coarsen_to_maingroup,
     )
     return attach_topic_dynamics(bundle, burst_percentile=burst_percentile)

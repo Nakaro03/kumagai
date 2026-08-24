@@ -76,6 +76,7 @@ FIT_DATASET_COLUMNS = (
     "burst",
     "next_mom",
     "log1p_M",
+    "coverage",
     "occ_a_centered",
     "occ_b_centered",
     "in_topic_universe",
@@ -127,7 +128,7 @@ def _load_occupancy_features(path: Path) -> pd.DataFrame:
         {"true": True, "false": False}
     ).astype(bool)
 
-    for column in ("occ_a_centered", "occ_b_centered"):
+    for column in ("coverage", "occ_a_centered", "occ_b_centered"):
         frame[column] = pd.to_numeric(frame[column], errors="coerce")
         reportable = frame["in_topic_universe"]
         if frame.loc[reportable, column].isna().any() or not np.isfinite(
@@ -192,6 +193,7 @@ def build_fit_dataset(
                 "cat",
                 "occ_a_centered",
                 "occ_b_centered",
+                "coverage",
                 "in_topic_universe",
             ],
         ],
@@ -216,17 +218,16 @@ def _validate_model_name(model: str) -> str:
     return model
 
 
-def fit_model(observations: pd.DataFrame, model: str) -> Dict[str, float]:
-    """Fit one OLS model, refusing every transition center after 2015."""
-    model = _validate_model_name(model)
-    required = {
-        "t",
-        "mom",
-        "log1p_M",
-        "burst",
-        "next_mom",
-        f"occ_{model}_centered",
-    }
+def validate_fit_observations(
+    observations: pd.DataFrame,
+    numeric_columns: Sequence[str],
+) -> pd.DataFrame:
+    """Validate a fit matrix and enforce the shared pre-holdout guard.
+
+    Every occupancy-model variant, including the non-gating coverage
+    sensitivity models, must pass through this guard before OLS is run.
+    """
+    required = {"t", *numeric_columns}
     missing = required - set(observations.columns)
     if missing:
         raise ValueError(f"Fit observations are missing columns: {sorted(missing)}")
@@ -245,15 +246,22 @@ def fit_model(observations: pd.DataFrame, model: str) -> Dict[str, float]:
             f"{MAX_TRANSITION_YEAR}; got t={bad_year}"
         )
 
-    occ_column = f"occ_{model}_centered"
-    numeric_columns = ["mom", "log1p_M", "burst", "next_mom", occ_column]
-    numeric = observations.loc[:, numeric_columns].apply(
+    numeric = observations.loc[:, list(numeric_columns)].apply(
         pd.to_numeric, errors="coerce"
     )
     if numeric.isna().any().any() or not np.isfinite(
         numeric.to_numpy(dtype=float)
     ).all():
         raise ValueError("Fit observations contain missing or non-finite values")
+    return numeric
+
+
+def fit_model(observations: pd.DataFrame, model: str) -> Dict[str, float]:
+    """Fit one OLS model, refusing every transition center after 2015."""
+    model = _validate_model_name(model)
+    occ_column = f"occ_{model}_centered"
+    numeric_columns = ["mom", "log1p_M", "burst", "next_mom", occ_column]
+    numeric = validate_fit_observations(observations, numeric_columns)
 
     mom = numeric["mom"].to_numpy(dtype=float)
     log1p_mass = numeric["log1p_M"].to_numpy(dtype=float)

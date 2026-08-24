@@ -124,6 +124,7 @@ class FitOccupancyModelTest(unittest.TestCase):
         self.assertAlmostEqual(row["next_mom"], math.log(2.0))
         self.assertEqual(row["burst"], 1.0)
         self.assertAlmostEqual(row["log1p_M"], math.log(8.0))
+        self.assertAlmostEqual(row["coverage"], 0.8)
         self.assertAlmostEqual(row["occ_a_centered"], 0.1)
         self.assertAlmostEqual(row["occ_b_centered"], -0.2)
         self.assertTrue(bool(row["in_topic_universe"]))

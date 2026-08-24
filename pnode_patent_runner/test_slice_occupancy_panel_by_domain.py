@@ -159,6 +159,65 @@ class OccupancyDomainSlicerTest(unittest.TestCase):
                 max_reporting_year=MAX_REPORTING_YEAR + 1,
             )
 
+    def test_confirmation_b_path_slices_synthetic_rows_through_2019_only(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            target_path, edge_path = self._fixture(root)
+            target = pd.read_csv(target_path, sep="\t")
+            edges = pd.read_csv(edge_path, sep="\t")
+            target = pd.concat(
+                [
+                    target,
+                    pd.DataFrame(
+                        [
+                            (2018, "E04C1", 8.0),
+                            (2019, "E04C1", 9.0),
+                            (2020, "E04C1", 1000.0),
+                        ],
+                        columns=slicer.TARGET_COLUMNS,
+                    ),
+                ],
+                ignore_index=True,
+            )
+            edges = pd.concat(
+                [
+                    edges,
+                    pd.DataFrame(
+                        [
+                            (2018, "c1", "E04C1", 8.0),
+                            (2019, "c1", "E04C1", 9.0),
+                            (2020, "c1", "E04C1", 1000.0),
+                        ],
+                        columns=slicer.EDGE_COLUMNS,
+                    ),
+                ],
+                ignore_index=True,
+            )
+            target.to_csv(target_path, sep="\t", index=False)
+            edges.to_csv(edge_path, sep="\t", index=False)
+
+            result = slicer.slice_occupancy_panel_by_domain_confirmation_b(
+                target_panel_path=target_path,
+                firm_edges_path=edge_path,
+                domains=("construction",),
+                output_dir=root / "confirmation_b",
+            )
+            sliced = pd.read_csv(
+                result.target_paths["construction"], sep="\t"
+            )
+            self.assertIn(2017, sliced["filing_year"].tolist())
+            self.assertIn(2018, sliced["filing_year"].tolist())
+            self.assertIn(2019, sliced["filing_year"].tolist())
+            self.assertNotIn(2020, sliced["filing_year"].tolist())
+            self.assertEqual(MAX_REPORTING_YEAR, 2016)
+
+        with self.assertRaisesRegex(ValueError, "Confirmation B guard"):
+            slicer.slice_occupancy_panel_by_domain_confirmation_b(
+                target_panel_path=Path("does-not-exist"),
+                firm_edges_path=Path("does-not-exist"),
+                max_reporting_year=2020,
+            )
+
     def test_unknown_domain_is_rejected_before_reading(self) -> None:
         with self.assertRaisesRegex(ValueError, "Unknown domain"):
             slicer.slice_occupancy_panel_by_domain(

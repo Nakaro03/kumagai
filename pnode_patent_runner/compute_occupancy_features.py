@@ -16,7 +16,7 @@ import argparse
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Optional, Sequence
+from typing import Dict, Mapping, Optional, Sequence
 
 import pandas as pd
 
@@ -47,6 +47,8 @@ DEFAULT_BY_DOMAIN_DIR = DEFAULT_PANEL_DIR / "by_domain"
 DEFAULT_OUTPUT_DIR = DEFAULT_PANEL_DIR / "occupancy_features"
 DEFAULT_CHUNK_SIZE = 500_000
 DEFAULT_TOLERANCE = 1e-9
+CONFIRMATION_B_MAX_REPORTING_YEAR = 2019
+CENTER_NAMES = ("occ_a", "occ_b")
 
 TARGET_COLUMNS = ("filing_year", "maingroup", "target_mass")
 EDGE_COLUMNS = ("filing_year", "assignee_id", "maingroup", "edge_weight")
@@ -83,6 +85,87 @@ def validate_max_reporting_year(year: int) -> int:
             f"max_reporting_year must be >= {MIN_FILING_YEAR}; got {year}"
         )
     return year
+
+
+def validate_confirmation_b_max_reporting_year(year: int) -> int:
+    """Validate only the explicitly separate Confirmation B feature path."""
+    if year > CONFIRMATION_B_MAX_REPORTING_YEAR:
+        raise ValueError(
+            "Confirmation B guard: max_reporting_year must be <= "
+            f"{CONFIRMATION_B_MAX_REPORTING_YEAR}; got {year}"
+        )
+    if year < MIN_FILING_YEAR:
+        raise ValueError(
+            f"max_reporting_year must be >= {MIN_FILING_YEAR}; got {year}"
+        )
+    return year
+
+
+def _validate_centers(centers: Mapping[str, float]) -> Dict[str, float]:
+    missing = set(CENTER_NAMES) - set(centers)
+    extra = set(centers) - set(CENTER_NAMES)
+    if missing or extra:
+        raise ValueError(
+            "Center keys differ; "
+            f"missing={sorted(missing)}, extra={sorted(extra)}"
+        )
+    validated = {name: float(centers[name]) for name in CENTER_NAMES}
+    if not all(math.isfinite(value) for value in validated.values()):
+        raise ValueError("Centering constants must all be finite")
+    return validated
+
+
+def recover_frozen_centers(
+    occupancy_features_path: Path,
+    tolerance: float = DEFAULT_TOLERANCE,
+) -> Dict[str, float]:
+    """Recover centers from an exploration-period frozen feature file.
+
+    Only topic-universe rows through the immutable exploration cutoff are
+    consulted.  The raw-minus-centered difference must be constant, so this
+    never estimates a new center from Confirmation B years.
+    """
+    if tolerance < 0 or not math.isfinite(tolerance):
+        raise ValueError(f"tolerance must be finite and non-negative; got {tolerance}")
+    path = Path(occupancy_features_path)
+    if not path.is_file():
+        raise FileNotFoundError(path)
+    required = (
+        "filing_year",
+        "occ_a",
+        "occ_a_centered",
+        "occ_b",
+        "occ_b_centered",
+        "in_topic_universe",
+    )
+    frame = pd.read_csv(path, sep="\t", dtype="string", usecols=list(required))
+    years = pd.to_numeric(frame["filing_year"], errors="coerce")
+    if years.isna().any() or ((years % 1) != 0).any():
+        raise ValueError(f"{path} contains a missing or non-integer filing_year")
+    universe = frame["in_topic_universe"].str.strip().str.lower()
+    if (~universe.isin(("true", "false"))).any():
+        raise ValueError(f"{path} contains a non-boolean in_topic_universe")
+    eligible = universe.eq("true") & (years <= MAX_REPORTING_YEAR)
+    if not eligible.any():
+        raise ValueError(f"{path} has no exploration-period topic-universe rows")
+
+    recovered: Dict[str, float] = {}
+    for name in CENTER_NAMES:
+        raw = pd.to_numeric(frame.loc[eligible, name], errors="coerce")
+        centered = pd.to_numeric(
+            frame.loc[eligible, f"{name}_centered"], errors="coerce"
+        )
+        differences = raw - centered
+        if differences.isna().any() or not differences.map(math.isfinite).all():
+            raise ValueError(f"{path} contains invalid frozen {name} values")
+        center = float(differences.iloc[0])
+        if ((differences - center).abs() > tolerance).any():
+            raise ValueError(
+                f"{path} does not contain one frozen {name} center within "
+                f"tolerance {tolerance}"
+            )
+        recovered[name] = center
+    return recovered
 
 
 def _validate_frame(
@@ -252,6 +335,7 @@ def _compute_domain_features(
     portfolio_totals: pd.DataFrame,
     max_reporting_year: int,
     tolerance: float = DEFAULT_TOLERANCE,
+    override_centers: Optional[Mapping[str, float]] = None,
 ) -> tuple[pd.DataFrame, pd.DataFrame, Dict[str, float], Dict[str, float]]:
     contributions = compute_edge_contributions(
         domain_edges, portfolio_totals, tolerance=tolerance
@@ -321,15 +405,20 @@ def _compute_domain_features(
     reportable = candidates["in_topic_universe"] & (
         candidates["filing_year"] <= max_reporting_year
     )
-    if not reportable.any():
-        raise ValueError(
-            "No topic-universe rows are available at or before "
-            f"max_reporting_year={max_reporting_year}; centering is undefined"
-        )
-    centers = {
-        "occ_a": float(candidates.loc[reportable, "occ_a"].mean()),
-        "occ_b": float(candidates.loc[reportable, "occ_b"].mean()),
-    }
+    if override_centers is None:
+        if not reportable.any():
+            raise ValueError(
+                "No topic-universe rows are available at or before "
+                f"max_reporting_year={max_reporting_year}; centering is undefined"
+            )
+        centers = {
+            "occ_a": float(candidates.loc[reportable, "occ_a"].mean()),
+            "occ_b": float(candidates.loc[reportable, "occ_b"].mean()),
+        }
+    else:
+        # Confirmation paths must apply the already-frozen exploration-period
+        # constants verbatim; no mean is evaluated in this branch.
+        centers = _validate_centers(override_centers)
     candidates["occ_a_centered"] = candidates["occ_a"] - centers["occ_a"]
     candidates["occ_b_centered"] = candidates["occ_b"] - centers["occ_b"]
 
@@ -351,7 +440,7 @@ def _compute_domain_features(
     return features.reset_index(drop=True), contributions, centers, summary
 
 
-def compute_occupancy_features(
+def _compute_occupancy_features(
     domains: Sequence[str] = DEFAULT_DOMAINS,
     full_firm_edges_path: Path = DEFAULT_FULL_FIRM_EDGES_PATH,
     by_domain_dir: Path = DEFAULT_BY_DOMAIN_DIR,
@@ -359,9 +448,10 @@ def compute_occupancy_features(
     max_reporting_year: int = MAX_REPORTING_YEAR,
     chunk_size: int = DEFAULT_CHUNK_SIZE,
     tolerance: float = DEFAULT_TOLERANCE,
+    override_centers: Optional[Mapping[str, Mapping[str, float]]] = None,
+    filter_through_year: Optional[int] = None,
+    print_summary: bool = True,
 ) -> OccupancyFeaturesResult:
-    """Compute and write occupancy features for each requested domain."""
-    max_reporting_year = validate_max_reporting_year(max_reporting_year)
     domains = validate_domains(domains)
     if tolerance < 0 or not math.isfinite(tolerance):
         raise ValueError(f"tolerance must be finite and non-negative; got {tolerance}")
@@ -374,6 +464,9 @@ def compute_occupancy_features(
         edge_path = by_domain_dir / f"firm_edges_{domain}.tsv"
         target = _aggregate_target(_read_panel(target_path, TARGET_COLUMNS))
         edges = _aggregate_edges(_read_panel(edge_path, EDGE_COLUMNS))
+        if filter_through_year is not None:
+            target = target[target["filing_year"] <= filter_through_year].copy()
+            edges = edges[edges["filing_year"] <= filter_through_year].copy()
         domain_inputs[domain] = (target, edges)
         all_key_frames.append(edges.loc[:, list(KEY_COLUMNS)])
 
@@ -393,6 +486,9 @@ def compute_occupancy_features(
             portfolio_totals,
             max_reporting_year=max_reporting_year,
             tolerance=tolerance,
+            override_centers=(
+                None if override_centers is None else override_centers[domain]
+            ),
         )
         output_frames[domain] = features
         centers_by_domain[domain] = centers
@@ -409,13 +505,81 @@ def compute_occupancy_features(
         output_paths[domain] = path
 
     summaries = pd.DataFrame(summary_rows)
-    print(
-        "Occupancy feature summary "
-        f"(guarded: filing_year <= {max_reporting_year}):",
-        flush=True,
-    )
-    print(summaries.to_string(index=False), flush=True)
+    if print_summary:
+        print(
+            "Occupancy feature summary "
+            f"(guarded: filing_year <= {max_reporting_year}):",
+            flush=True,
+        )
+        print(summaries.to_string(index=False), flush=True)
     return OccupancyFeaturesResult(output_paths, centers_by_domain, summaries)
+
+
+def compute_occupancy_features(
+    domains: Sequence[str] = DEFAULT_DOMAINS,
+    full_firm_edges_path: Path = DEFAULT_FULL_FIRM_EDGES_PATH,
+    by_domain_dir: Path = DEFAULT_BY_DOMAIN_DIR,
+    output_dir: Path = DEFAULT_OUTPUT_DIR,
+    max_reporting_year: int = MAX_REPORTING_YEAR,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    tolerance: float = DEFAULT_TOLERANCE,
+    override_centers: Optional[Mapping[str, Mapping[str, float]]] = None,
+) -> OccupancyFeaturesResult:
+    """Compute features on the existing guarded path (backward compatible)."""
+    max_reporting_year = validate_max_reporting_year(max_reporting_year)
+    if override_centers is not None:
+        domains = validate_domains(domains)
+        if set(override_centers) != set(domains):
+            raise ValueError("override_centers must provide every requested domain")
+    return _compute_occupancy_features(
+        domains=domains,
+        full_firm_edges_path=full_firm_edges_path,
+        by_domain_dir=by_domain_dir,
+        output_dir=output_dir,
+        max_reporting_year=max_reporting_year,
+        chunk_size=chunk_size,
+        tolerance=tolerance,
+        override_centers=override_centers,
+    )
+
+
+def compute_occupancy_features_confirmation_b(
+    *,
+    override_centers: Mapping[str, Mapping[str, float]],
+    domains: Sequence[str] = DEFAULT_DOMAINS,
+    full_firm_edges_path: Path = DEFAULT_FULL_FIRM_EDGES_PATH,
+    by_domain_dir: Path = DEFAULT_BY_DOMAIN_DIR,
+    output_dir: Path = DEFAULT_OUTPUT_DIR / "confirmation_b",
+    max_reporting_year: int = CONFIRMATION_B_MAX_REPORTING_YEAR,
+    chunk_size: int = DEFAULT_CHUNK_SIZE,
+    tolerance: float = DEFAULT_TOLERANCE,
+) -> OccupancyFeaturesResult:
+    """Compute Confirmation B features using mandatory frozen centers.
+
+    This explicit path is the only feature constructor that admits years after
+    2016.  It cannot be called without a complete per-domain center mapping.
+    """
+    max_reporting_year = validate_confirmation_b_max_reporting_year(
+        max_reporting_year
+    )
+    domains = validate_domains(domains)
+    if set(override_centers) != set(domains):
+        raise ValueError("override_centers must provide every requested domain")
+    validated = {
+        domain: _validate_centers(override_centers[domain]) for domain in domains
+    }
+    return _compute_occupancy_features(
+        domains=domains,
+        full_firm_edges_path=full_firm_edges_path,
+        by_domain_dir=by_domain_dir,
+        output_dir=output_dir,
+        max_reporting_year=max_reporting_year,
+        chunk_size=chunk_size,
+        tolerance=tolerance,
+        override_centers=validated,
+        filter_through_year=max_reporting_year,
+        print_summary=False,
+    )
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:

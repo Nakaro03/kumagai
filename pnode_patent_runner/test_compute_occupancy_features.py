@@ -6,6 +6,7 @@ import tempfile
 import unittest
 from contextlib import redirect_stdout
 from pathlib import Path
+from unittest.mock import patch
 
 import pandas as pd
 
@@ -190,6 +191,63 @@ class OccupancyFeaturesTest(unittest.TestCase):
             self.assertAlmostEqual(holdout["occ_a_centered"], 0.6 - 0.8125)
             self.assertAlmostEqual(holdout["occ_b"], 0.36)
             self.assertAlmostEqual(holdout["occ_b_centered"], 0.36 - 0.5)
+
+    def test_override_centers_are_used_verbatim_without_computing_a_mean(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            full_path, by_domain = self._fixture(root, include_holdout=False)
+            target = occupancy._aggregate_target(
+                occupancy._read_panel(
+                    by_domain / "target_panel_construction.tsv",
+                    occupancy.TARGET_COLUMNS,
+                )
+            )
+            edges = occupancy._aggregate_edges(
+                occupancy._read_panel(
+                    by_domain / "firm_edges_construction.tsv",
+                    occupancy.EDGE_COLUMNS,
+                )
+            )
+            totals = occupancy._full_portfolio_totals(
+                full_path, edges.loc[:, list(occupancy.KEY_COLUMNS)]
+            )
+            frozen = {"occ_a": 10.0, "occ_b": -4.0}
+            with patch.object(
+                pd.Series,
+                "mean",
+                side_effect=AssertionError("center mean must be skipped"),
+            ):
+                features, _, centers, _ = occupancy._compute_domain_features(
+                    target,
+                    edges,
+                    totals,
+                    max_reporting_year=2019,
+                    override_centers=frozen,
+                )
+
+            self.assertEqual(centers, frozen)
+            reportable = features[features["in_topic_universe"]].copy()
+            self.assertTrue(
+                (
+                    reportable["occ_a"] - reportable["occ_a_centered"]
+                ).eq(frozen["occ_a"]).all()
+            )
+            self.assertTrue(
+                (
+                    reportable["occ_b"] - reportable["occ_b_centered"]
+                ).eq(frozen["occ_b"]).all()
+            )
+
+    def test_recover_frozen_centers_uses_exploration_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            result, _ = self._run(Path(directory))
+            recovered = occupancy.recover_frozen_centers(
+                result.output_paths["construction"]
+            )
+            self.assertEqual(
+                recovered,
+                result.centering_constants["construction"],
+            )
 
     def test_holdout_guard_and_stdout_do_not_report_holdout(self) -> None:
         with self.assertRaisesRegex(ValueError, "Holdout guard"):

@@ -50,6 +50,7 @@ DEFAULT_OUTPUT_DIR = DEFAULT_PANEL_DIR / "by_domain"
 # domain for this inventional-only panel.  Keep it in DOMAINS for explicit use.
 DEFAULT_DOMAINS = ("construction", "agrifood", "computing")
 DEFAULT_TOLERANCE = 1e-6
+CONFIRMATION_B_MAX_REPORTING_YEAR = 2019
 
 TARGET_COLUMNS = ("filing_year", "maingroup", "target_mass")
 EDGE_COLUMNS = ("filing_year", "assignee_id", "maingroup", "edge_weight")
@@ -69,6 +70,20 @@ def validate_max_reporting_year(year: int) -> int:
         raise ValueError(
             "Holdout guard: max_reporting_year must be <= "
             f"{MAX_REPORTING_YEAR}; got {year}"
+        )
+    if year < MIN_FILING_YEAR:
+        raise ValueError(
+            f"max_reporting_year must be >= {MIN_FILING_YEAR}; got {year}"
+        )
+    return year
+
+
+def validate_confirmation_b_max_reporting_year(year: int) -> int:
+    """Validate only the explicitly named Confirmation B slicing path."""
+    if year > CONFIRMATION_B_MAX_REPORTING_YEAR:
+        raise ValueError(
+            "Confirmation B guard: max_reporting_year must be <= "
+            f"{CONFIRMATION_B_MAX_REPORTING_YEAR}; got {year}"
         )
     if year < MIN_FILING_YEAR:
         raise ValueError(
@@ -168,16 +183,17 @@ def _yearly_summary(target: pd.DataFrame, edges: pd.DataFrame) -> pd.DataFrame:
     return yearly.sort_values("filing_year").reset_index(drop=True)
 
 
-def slice_occupancy_panel_by_domain(
+def _slice_occupancy_panel_by_domain(
     target_panel_path: Path = DEFAULT_TARGET_PANEL_PATH,
     firm_edges_path: Path = DEFAULT_FIRM_EDGES_PATH,
     domains: Sequence[str] = DEFAULT_DOMAINS,
     max_reporting_year: int = MAX_REPORTING_YEAR,
     output_dir: Path = DEFAULT_OUTPUT_DIR,
     tolerance: float = DEFAULT_TOLERANCE,
+    summary_filename: str = "domain_coverage_summary.tsv",
+    print_summary: bool = True,
 ) -> SliceResult:
-    """Write guarded domain slices and a horizontally arranged yearly summary."""
-    max_reporting_year = validate_max_reporting_year(max_reporting_year)
+    """Shared implementation entered only through a validated public path."""
     domains = validate_domains(domains)
     if tolerance < 0 or not math.isfinite(tolerance):
         raise ValueError(f"tolerance must be finite and non-negative; got {tolerance}")
@@ -247,14 +263,65 @@ def slice_occupancy_panel_by_domain(
         target_paths[domain] = target_path
         edge_paths[domain] = edge_path
 
-    summary_path = output_dir / "domain_coverage_summary.tsv"
+    summary_path = output_dir / summary_filename
     summary.to_csv(summary_path, sep="\t", index=False)
-    print(
-        f"Domain coverage summary (guarded: filing_year <= {max_reporting_year}):",
-        flush=True,
-    )
-    print(summary.to_string(index=False), flush=True)
+    if print_summary:
+        print(
+            f"Domain coverage summary (guarded: filing_year <= {max_reporting_year}):",
+            flush=True,
+        )
+        print(summary.to_string(index=False), flush=True)
     return SliceResult(target_paths, edge_paths, summary_path, summary)
+
+
+def slice_occupancy_panel_by_domain(
+    target_panel_path: Path = DEFAULT_TARGET_PANEL_PATH,
+    firm_edges_path: Path = DEFAULT_FIRM_EDGES_PATH,
+    domains: Sequence[str] = DEFAULT_DOMAINS,
+    max_reporting_year: int = MAX_REPORTING_YEAR,
+    output_dir: Path = DEFAULT_OUTPUT_DIR,
+    tolerance: float = DEFAULT_TOLERANCE,
+) -> SliceResult:
+    """Write normal guarded domain slices (immutable cutoff: 2016)."""
+    max_reporting_year = validate_max_reporting_year(max_reporting_year)
+    return _slice_occupancy_panel_by_domain(
+        target_panel_path=target_panel_path,
+        firm_edges_path=firm_edges_path,
+        domains=domains,
+        max_reporting_year=max_reporting_year,
+        output_dir=output_dir,
+        tolerance=tolerance,
+    )
+
+
+def slice_occupancy_panel_by_domain_confirmation_b(
+    *,
+    target_panel_path: Path = DEFAULT_TARGET_PANEL_PATH,
+    firm_edges_path: Path = DEFAULT_FIRM_EDGES_PATH,
+    domains: Sequence[str] = DEFAULT_DOMAINS,
+    max_reporting_year: int = CONFIRMATION_B_MAX_REPORTING_YEAR,
+    output_dir: Path = DEFAULT_OUTPUT_DIR / "confirmation_b",
+    tolerance: float = DEFAULT_TOLERANCE,
+) -> SliceResult:
+    """Write the explicit Confirmation B slices, admitting at most 2019.
+
+    This function is intentionally keyword-only and absent from the normal
+    module CLI.  The Confirmation B runner pairs it with mandatory frozen
+    centering constants before feature construction.
+    """
+    max_reporting_year = validate_confirmation_b_max_reporting_year(
+        max_reporting_year
+    )
+    return _slice_occupancy_panel_by_domain(
+        target_panel_path=target_panel_path,
+        firm_edges_path=firm_edges_path,
+        domains=domains,
+        max_reporting_year=max_reporting_year,
+        output_dir=output_dir,
+        tolerance=tolerance,
+        summary_filename="confirmation_b_domain_coverage_summary.tsv",
+        print_summary=False,
+    )
 
 
 def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:

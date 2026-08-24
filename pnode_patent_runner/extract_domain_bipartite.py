@@ -14,9 +14,10 @@ Domains:
   construction : E04, E02, E03, E21
 """
 
-import pandas as pd
+import argparse
 import os
-import sys
+
+import pandas as pd
 
 BASE = "/home/nakamuraroi/kumagai/notebooks/work/dataset/PatentsViewBulkData"
 OUT_DIR = "/home/nakamuraroi/kumagai/data/processed"
@@ -41,8 +42,24 @@ def domain_prefixes_match(group: pd.Series, prefixes) -> pd.Series:
     return mask
 
 
-def main():
-    target_domain = sys.argv[1] if len(sys.argv) > 1 else None
+def parse_args(argv=None):
+    parser = argparse.ArgumentParser(
+        description="Extract domain-specific bipartite events from PatentsView bulk TSV files."
+    )
+    parser.add_argument("domain", nargs="?", help="Optional domain to extract (default: all domains)")
+    parser.add_argument(
+        "--year-end",
+        type=int,
+        default=YEAR_END,
+        help=f"Last patent year to include (default: {YEAR_END})",
+    )
+    return parser.parse_args(argv)
+
+
+def main(argv=None):
+    args = parse_args(argv)
+    target_domain = args.domain
+    year_end = args.year_end
     domains_to_run = {k: v for k, v in DOMAINS.items()
                       if target_domain is None or k == target_domain}
 
@@ -55,9 +72,9 @@ def main():
     patent["patent_date"] = pd.to_datetime(patent["patent_date"], errors="coerce")
     patent = patent.dropna(subset=["patent_date"])
     patent["year"] = patent["patent_date"].dt.year
-    patent = patent[(patent["year"] >= YEAR_START) & (patent["year"] <= YEAR_END)]
+    patent = patent[(patent["year"] >= YEAR_START) & (patent["year"] <= year_end)]
     patent_ids = set(patent["patent_id"].values)
-    print(f"  Patents in {YEAR_START}-{YEAR_END}: {len(patent_ids):,}", flush=True)
+    print(f"  Patents in {YEAR_START}-{year_end}: {len(patent_ids):,}", flush=True)
 
     print("Loading g_inventor_disambiguated.tsv ...", flush=True)
     inv = pd.read_csv(

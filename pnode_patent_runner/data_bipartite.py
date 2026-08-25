@@ -51,9 +51,17 @@ def preprocess_bipartite_events(
     year_min: int = 2000,
     year_max: int = 2021,
     min_events: int = 2,
+    coarsen_to_maingroup: bool = False,
 ) -> pd.DataFrame:
     """
     Read a ts/u/i event CSV, filter by year, drop low-activity actors.
+
+    coarsen_to_maingroup: このローダーは既定で `i` を生の値のまま使う（例:
+    "H01L21/338" のようなCPC subgroup粒度、"/"以降を保持）。プロジェクト内の
+    他系統（techtrend_common.py の coarsen()）は "/" 以降を切り捨てた maingroup
+    粒度（例: "H01L21"）を使っており、以前①Task Bで「実はsubgroup粒度だった」
+    という粒度の食い違いが発覚した実績がある（project_robustness_node_domain_sweep）。
+    True にすると同じ切り捨てロジックで maingroup に粗視化する。
 
     Returns a clean DataFrame with columns: year, u, i
     """
@@ -66,6 +74,8 @@ def preprocess_bipartite_events(
     df = df.dropna(subset=["ts"])
     df["year"] = df["ts"].dt.year.astype(int)
     df = df[(df["year"] >= year_min) & (df["year"] <= year_max)]
+    if coarsen_to_maingroup:
+        df["i"] = df["i"].str.split("/").str[0]
 
     # drop actors with fewer than min_events across whole period
     counts = df["u"].value_counts()

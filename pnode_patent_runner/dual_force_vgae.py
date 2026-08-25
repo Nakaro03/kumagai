@@ -90,8 +90,15 @@ class DualForceVGAE(nn.Module):
         P_j はトピックノードの潜在ベクトル z_j（当年エンコーダ出力、detach）を使う
         —— エンコード前の生特徴 x_j ではない（TAP-NODE と同じアンカーの取り方に統一）。
         D_j は符号付きトレンド 1 個（trend_plus - trend_minus = M_j(t)-M_j(t-1)）。
+
+        z_history_list の最新要素は時間発展モジュールへの入力として detach する。
+        detach しないと、time-evolution 側の損失（latent_pred_loss, future_link_loss）
+        の勾配が Dual-Force のアテンション機構を経由せずエンコーダまで伝播し、エンコーダ
+        自身が「答えを吸収」できてしまう（rank_renorm が同一エンコーダ下で static と
+        統計的に無差別だった原因の一つ）。reconstruction loss 経由のエンコーダ学習は
+        呼び出し側が別途 encode() の生出力を使っており、この detach の影響を受けない。
         """
-        z = z_history_list[-1]
+        z = z_history_list[-1].detach()
         if data_t is not None:
             dtp = data_t.to(z.device, non_blocking=True)
             d_j = (dtp.topic_trend_plus - dtp.topic_trend_minus).unsqueeze(-1)
